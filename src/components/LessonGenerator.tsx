@@ -32,10 +32,26 @@ const steps = [
   { id: 4, title: "Generate", description: "Review & download" },
 ];
 
-const subjects = [
-  "Mathematics", "English Language", "Science", "Social Studies", 
-  "History", "Geography", "Physics", "Chemistry", "Biology",
-  "Computer Science", "Art", "Music", "Physical Education"
+const jssSubjects = [
+  "English Language", "Mathematics", "Basic Science", "Basic Technology",
+  "Social Studies", "Business Studies", "Home Economics", "Agricultural Science",
+  "Computer Studies", "Physical & Health Education", "Cultural & Creative Arts",
+  "Christian Religious Studies (CRS)", "Islamic Studies (IS)"
+];
+
+const sssSubjects = [
+  // Core Compulsory Subjects
+  "English Language & Communication", "General Mathematics", 
+  "Digital Technologies (Digital Literacy)", "Citizenship and Heritage Studies",
+  // Science Electives
+  "Biology", "Chemistry", "Physics", "Agricultural Science", "Further Mathematics",
+  "Physical & Health Education", "Geography", "Technical Drawing",
+  // Arts/Social Science Electives
+  "Literature in English", "Government", "Nigerian History",
+  "Christian Religious Studies (CRS)", "Islamic Studies (IS)",
+  "Hausa Language", "Igbo Language", "Yoruba Language",
+  // Commercial Electives
+  "Financial Accounting", "Commerce", "Marketing", "Economics", "Data Processing"
 ];
 
 const countries = [
@@ -46,6 +62,15 @@ const countries = [
 const classLevels = [
   "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"
 ];
+
+const getSubjectsForClass = (classLevel: string) => {
+  if (classLevel.startsWith("JSS")) {
+    return jssSubjects;
+  } else if (classLevel.startsWith("SSS")) {
+    return sssSubjects;
+  }
+  return [];
+};
 
 const templates = [
   { id: "universal", name: "Universal Template", description: "Standard lesson plan format" },
@@ -77,7 +102,13 @@ export const LessonGenerator = ({ onBack }: LessonGeneratorProps) => {
   });
 
   const updateForm = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // Reset subject when class level changes
+      if (field === "classLevel" && prev.classLevel !== value) {
+        return { ...prev, [field]: value, subject: "" };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   const canProceed = () => {
@@ -156,12 +187,16 @@ export const LessonGenerator = ({ onBack }: LessonGeneratorProps) => {
 
                 <div className="space-y-2">
                   <Label>Subject *</Label>
-                  <Select value={formData.subject} onValueChange={(v) => updateForm("subject", v)}>
+                  <Select 
+                    value={formData.subject} 
+                    onValueChange={(v) => updateForm("subject", v)}
+                    disabled={!formData.classLevel}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select subject" />
+                      <SelectValue placeholder={formData.classLevel ? "Select subject" : "Select class first"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      {subjects.map(subject => (
+                      {getSubjectsForClass(formData.classLevel).map(subject => (
                         <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                       ))}
                     </SelectContent>
