@@ -141,20 +141,6 @@ export const LessonGenerator = ({ onBack }: LessonGeneratorProps) => {
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Select value={formData.subject} onValueChange={(v) => updateForm("subject", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjects.map(subject => (
-                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
                   <Label>Class Level *</Label>
                   <Select value={formData.classLevel} onValueChange={(v) => updateForm("classLevel", v)}>
                     <SelectTrigger>
@@ -163,6 +149,20 @@ export const LessonGenerator = ({ onBack }: LessonGeneratorProps) => {
                     <SelectContent>
                       {classLevels.map(level => (
                         <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Subject *</Label>
+                  <Select value={formData.subject} onValueChange={(v) => updateForm("subject", v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subject" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {subjects.map(subject => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
