@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { BookOpen, Sparkles, FileText, Wand2 } from "lucide-react";
+import { BookOpen, Sparkles, FileText, Wand2, GraduationCap } from "lucide-react";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -17,30 +17,38 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
+          {/* Logo & App Name */}
+          <div className="flex items-center justify-center gap-3 mb-6 animate-fade-up">
+            <div className="p-3 rounded-2xl gradient-primary shadow-glow">
+              <GraduationCap className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground">
+              Teacher's Aid
+            </h2>
+          </div>
+
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-8 animate-fade-up">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-8 animate-fade-up" style={{ animationDelay: '0.1s' }}>
             <Sparkles className="w-4 h-4" />
             <span className="text-sm font-medium">AI-Powered Teaching Assistant</span>
           </div>
 
           {/* Main heading */}
-          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-            Create Perfect{" "}
-            <span className="text-gradient">Lesson Plans</span>
-            <br />
-            in Minutes
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 animate-fade-up" style={{ animationDelay: '0.2s' }}>
+            Your Smart Partner for{" "}
+            <span className="text-gradient">Effortless Lesson Planning</span>
           </h1>
 
           {/* Subheading */}
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-            Upload your curriculum, specify your requirements, and let AI generate comprehensive lesson notes with presentation guides tailored to your needs.
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            Simply upload your curriculum or scheme of work, and let AI craft detailed lesson notes with step-by-step presentation guides — saving you hours of prep time.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-up" style={{ animationDelay: '0.3s' }}>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-up" style={{ animationDelay: '0.4s' }}>
             <Button variant="hero" size="xl" onClick={onGetStarted}>
               <Wand2 className="w-5 h-5" />
-              Generate Lesson Plan
+              Start Creating
             </Button>
             <Button variant="outline" size="lg">
               <FileText className="w-5 h-5" />
@@ -49,10 +57,10 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
           </div>
 
           {/* Feature pills */}
-          <div className="flex flex-wrap justify-center gap-3 mt-12 animate-fade-up" style={{ animationDelay: '0.4s' }}>
+          <div className="flex flex-wrap justify-center gap-3 mt-12 animate-fade-up" style={{ animationDelay: '0.5s' }}>
             {[
-              { icon: BookOpen, text: "Any Subject" },
-              { icon: FileText, text: "PDF/DOCX Export" },
+              { icon: BookOpen, text: "All Subjects" },
+              { icon: FileText, text: "PDF & DOCX Export" },
               { icon: Sparkles, text: "Smart Templates" },
             ].map((feature, index) => (
               <div
