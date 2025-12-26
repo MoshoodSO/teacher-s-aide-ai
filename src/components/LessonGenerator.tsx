@@ -66,12 +66,99 @@ const getSubjectsForClass = (classLevel: string) => {
   return [];
 };
 
-const templates = [
-  { id: "universal", name: "Universal Template", description: "Standard lesson plan format" },
-  { id: "5e", name: "5E Model", description: "Engage, Explore, Explain, Elaborate, Evaluate" },
-  { id: "backward", name: "Backward Design", description: "Start with learning objectives" },
-  { id: "direct", name: "Direct Instruction", description: "Teacher-centered approach" },
-];
+// Generate appropriate content based on class level
+const generateLevelAppropriateContent = (subject: string, classLevel: string, topic: string) => {
+  const isJSS = classLevel.startsWith("JSS");
+  
+  if (isJSS) {
+    return {
+      objectives: [
+        `Define and explain the meaning of ${topic} in simple terms`,
+        `Identify at least three key features/characteristics of ${topic}`,
+        `Give practical examples of ${topic} from everyday life`,
+        `Demonstrate understanding by answering basic questions on ${topic}`
+      ],
+      content: `${topic} is an important concept in ${subject}. It helps students understand fundamental principles that they will build upon in higher classes.
+
+DEFINITION:
+${topic} refers to the basic concepts and principles that form the foundation of this subject area.
+
+KEY POINTS:
+1. Introduction to basic concepts
+2. Simple explanations with relatable examples
+3. Connection to daily life experiences
+4. Foundation building for advanced topics
+
+EXPLANATION:
+This topic introduces students to essential knowledge in ${subject}. Using simple language and everyday examples, students will grasp the fundamental ideas that prepare them for more advanced studies.`,
+      presentation: [
+        "Teacher introduces the topic by asking students what they already know about the subject",
+        "Teacher explains the meaning of the topic using simple language and visual aids",
+        "Teacher uses local examples and demonstrations to illustrate key points",
+        "Students participate in a class discussion and ask questions",
+        "Teacher summarizes the main points and checks for understanding"
+      ],
+      evaluation: [
+        `What is ${topic}?`,
+        `Mention three characteristics of ${topic}`,
+        `Give two examples of ${topic} from your environment`,
+        `Why is ${topic} important?`
+      ],
+      assignment: [
+        `Write five sentences explaining what you learned about ${topic}`,
+        `Draw a diagram showing the key features of ${topic}`,
+        `Find three examples of ${topic} in your home or community`
+      ]
+    };
+  } else {
+    return {
+      objectives: [
+        `Analyze and critically evaluate the concept of ${topic}`,
+        `Compare and contrast different aspects/types of ${topic}`,
+        `Apply theoretical knowledge of ${topic} to solve practical problems`,
+        `Synthesize information to draw conclusions about ${topic}`
+      ],
+      content: `${topic} is a critical concept in ${subject} that requires in-depth understanding and analytical skills.
+
+DEFINITION AND THEORETICAL FRAMEWORK:
+${topic} encompasses the advanced principles and methodologies central to this subject area. Understanding this concept requires analyzing multiple perspectives and applying critical thinking.
+
+DETAILED ANALYSIS:
+1. Theoretical foundations and historical development
+2. Core principles and their interrelationships
+3. Practical applications in various contexts
+4. Contemporary relevance and emerging trends
+5. Critical evaluation of different viewpoints
+
+ADVANCED CONCEPTS:
+This topic builds upon foundational knowledge to explore complex relationships and applications. Students are expected to engage with scholarly materials, conduct analysis, and demonstrate higher-order thinking skills.
+
+PRACTICAL APPLICATIONS:
+- Real-world case studies
+- Problem-solving scenarios
+- Research methodologies
+- Industry applications`,
+      presentation: [
+        "Teacher reviews previous knowledge and connects it to the new topic through guided questioning",
+        "Teacher presents the theoretical framework using multimedia resources and scholarly references",
+        "Students engage in group discussions to analyze case studies and real-world applications",
+        "Teacher facilitates a critical analysis session where students compare different perspectives",
+        "Students present their findings and conclusions; teacher provides feedback and clarification"
+      ],
+      evaluation: [
+        `Critically analyze the concept of ${topic} and its significance in ${subject}`,
+        `Compare and contrast at least two different approaches to ${topic}`,
+        `Apply the principles of ${topic} to solve the given problem`,
+        `Evaluate the importance of ${topic} in contemporary society`
+      ],
+      assignment: [
+        `Write a 500-word essay analyzing the key aspects of ${topic}`,
+        `Research and present a case study demonstrating the application of ${topic}`,
+        `Prepare a detailed comparison chart showing different perspectives on ${topic}`
+      ]
+    };
+  }
+};
 
 interface LessonGeneratorProps {
   onBack: () => void;
@@ -120,77 +207,92 @@ export const LessonGenerator = ({ onBack }: LessonGeneratorProps) => {
   };
 
   const generateLessonContent = () => {
-    const templateName = templates.find(t => t.id === formData.template)?.name || "Universal Template";
     const weeksText = formData.weeks === "all" ? "All Weeks" : `Weeks: ${formData.specificWeeks}`;
+    const topic = formData.curriculumText ? formData.curriculumText.split('\n')[0].substring(0, 50) : `Introduction to ${formData.subject}`;
+    const content = generateLevelAppropriateContent(formData.subject, formData.classLevel, topic);
+    
+    const currentDate = new Date().toLocaleDateString('en-NG', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
     
     return `
-LESSON PLAN
+LESSON NOTE
 ============
 
-Subject: ${formData.subject}
+Date: ${currentDate}
+
 Class: ${formData.classLevel}
-Country: ${formData.country || "Nigeria"}
-Template: ${templateName}
+
+Subject: ${formData.subject}
+
+Topic: ${topic}
+
+Sub-topic: ${formData.curriculumText ? "As per curriculum content provided" : "Fundamental Concepts"}
+
+Time: 40 minutes
+
 Duration: ${weeksText}
 
----
+Period/Day: First Period / Monday
 
-WEEK 1: INTRODUCTION TO ${formData.subject.toUpperCase()}
+Reference Book(s):
+- Approved ${formData.subject} Textbook for ${formData.classLevel}
+- ${formData.country || "Nigeria"} National Curriculum
+- Relevant supplementary materials and educational resources
 
-TOPIC: Fundamental Concepts and Principles
+Instructional Material(s):
+- Chalkboard/Whiteboard and markers
+- Charts and diagrams
+- Pictures and visual aids
+- Real objects and specimens (where applicable)
+- Multimedia resources (projector, videos)
 
-OBJECTIVES:
+Entry Behaviour:
+Students have been introduced to the foundational concepts of ${formData.subject} in previous lessons. They can identify basic terms and have some understanding of related topics from their environment.
+
+Behavioural Objectives:
 By the end of this lesson, students should be able to:
-1. Define and explain the basic concepts of ${formData.subject}
-2. Identify key principles and their applications
-3. Demonstrate understanding through practical examples
+${content.objectives.map((obj, i) => `${i + 1}. ${obj}`).join('\n')}
 
-INSTRUCTIONAL MATERIALS:
-- Textbooks and reference materials
-- Visual aids (charts, diagrams)
-- Multimedia resources (videos, presentations)
-- Real-world examples and case studies
+Content:
+${content.content}
 
-LESSON PRESENTATION:
+Presentation in Steps:
 
-Step 1: Introduction (10 minutes)
-- Welcome students and review previous knowledge
-- Introduce the topic using engaging questions
-- State the lesson objectives clearly
+Step I - Introduction (5 minutes):
+${content.presentation[0]}
 
-Step 2: Development (25 minutes)
-- Present core concepts systematically
-- Use illustrations and examples
-- Encourage student participation and questions
-- Apply interactive teaching methods
+Step II - Explanation/Development (15 minutes):
+${content.presentation[1]}
 
-Step 3: Practice (10 minutes)
-- Guided practice exercises
-- Group discussions and activities
-- Problem-solving scenarios
+Step III - Discussion/Activity (10 minutes):
+${content.presentation[2]}
 
-Step 4: Evaluation (10 minutes)
-- Ask oral questions to assess understanding
-- Written exercises or quizzes
-- Provide immediate feedback
+Step IV - Application (5 minutes):
+${content.presentation[3]}
 
-CONCLUSION:
-- Summarize key points covered
-- Connect to real-life applications
-- Preview next lesson topics
+Step V - Summary (5 minutes):
+${content.presentation[4]}
 
-ASSIGNMENT:
-- Read relevant textbook chapters
-- Complete practice exercises
-- Research additional examples
+Conclusion:
+The teacher summarizes the main points of the lesson, emphasizing the key concepts and their practical applications. Students are encouraged to relate the lesson to their daily experiences and prepare for the next class.
 
-TEACHER'S NOTES:
-${formData.additionalNotes || "No additional notes provided."}
+Evaluation:
+As stated in the Behavioural Objectives, students will be evaluated through the following questions:
+${content.evaluation.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
----
+Assignment:
+${content.assignment.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
+${formData.additionalNotes ? `
+Teacher's Notes:
+${formData.additionalNotes}
+` : ""}
 ${formData.curriculumText ? `
-CURRICULUM CONTENT PROVIDED:
+---
+Curriculum Content Provided:
 ${formData.curriculumText}
 ` : ""}
 
@@ -401,37 +503,32 @@ Generated by Teacher's Aid
                   <Settings className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Output Settings</h2>
-                  <p className="text-sm text-muted-foreground">Customize your lesson plan format</p>
+                  <h2 className="font-display text-xl font-semibold">Additional Settings</h2>
+                  <p className="text-sm text-muted-foreground">Add any extra notes or requirements</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <Label>Lesson Plan Template</Label>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() => updateForm("template", template.id)}
-                      className={cn(
-                        "p-4 rounded-xl border-2 text-left transition-all duration-200",
-                        formData.template === template.id
-                          ? "border-primary bg-primary/5 shadow-soft"
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
-                      )}
-                    >
-                      <p className="font-medium text-foreground">{template.name}</p>
-                      <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
-                    </button>
-                  ))}
-                </div>
+              <div className="bg-muted/50 rounded-xl p-6">
+                <h3 className="font-semibold text-foreground mb-3">Lesson Note Format</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Your lesson note will be generated using the standard Nigerian education format including:
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Date, Class, Subject, Topic, Sub-topic</li>
+                  <li>• Time, Duration, Period/Day</li>
+                  <li>• Reference Books & Instructional Materials</li>
+                  <li>• Entry Behaviour & Behavioural Objectives</li>
+                  <li>• Content (comprehensive and level-appropriate)</li>
+                  <li>• Presentation in Steps (I to V)</li>
+                  <li>• Conclusion, Evaluation & Assignment</li>
+                </ul>
               </div>
 
               <div className="space-y-2">
                 <Label>Additional Notes (Optional)</Label>
                 <Textarea
-                  placeholder="Any specific requirements or preferences for the lesson plan..."
-                  className="min-h-[100px] resize-none"
+                  placeholder="Any specific requirements, special considerations, or additional information for the lesson note..."
+                  className="min-h-[120px] resize-none"
                   value={formData.additionalNotes}
                   onChange={(e) => updateForm("additionalNotes", e.target.value)}
                 />
@@ -481,10 +578,8 @@ Generated by Teacher's Aid
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Template:</span>
-                    <span className="font-medium">
-                      {templates.find(t => t.id === formData.template)?.name}
-                    </span>
+                    <span className="text-muted-foreground">Format:</span>
+                    <span className="font-medium">Standard Nigerian Lesson Note</span>
                   </div>
                 </div>
               </div>
