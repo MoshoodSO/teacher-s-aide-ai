@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { BookOpen, Sparkles, FileText, Wand2, GraduationCap } from "lucide-react";
+import { BookOpen, Sparkles, FileText, Wand2, GraduationCap, FolderOpen } from "lucide-react";
 
 interface HeroProps {
   onGetStarted: () => void;
+  onViewDashboard?: () => void;
 }
 
-export const Hero = ({ onGetStarted }: HeroProps) => {
+export const Hero = ({ onGetStarted, onViewDashboard }: HeroProps) => {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center gradient-hero overflow-hidden">
       {/* Background decorations */}
@@ -50,9 +51,9 @@ export const Hero = ({ onGetStarted }: HeroProps) => {
               <Wand2 className="w-5 h-5" />
               Start Creating
             </Button>
-            <Button variant="outline" size="lg">
-              <FileText className="w-5 h-5" />
-              View Examples
+            <Button variant="outline" size="lg" onClick={onViewDashboard}>
+              <FolderOpen className="w-5 h-5" />
+              My Lessons
             </Button>
           </div>
 
