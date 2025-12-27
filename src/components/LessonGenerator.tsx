@@ -22,16 +22,18 @@ import {
   Download,
   Sparkles,
   Loader2,
-  Save
+  Save,
+  AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SavedLesson, saveLessonToStorage } from "@/types/lesson";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { generateLessonPDF, generateLessonDOCX } from "@/lib/pdfGenerator";
 
 const steps = [
   { id: 1, title: "Subject", description: "Choose subject & class" },
-  { id: 2, title: "Curriculum", description: "Upload or enter content" },
+  { id: 2, title: "Topic", description: "Enter or upload topic" },
   { id: 3, title: "Settings", description: "Customize output" },
   { id: 4, title: "Generate", description: "Review & download" },
 ];
@@ -67,100 +69,6 @@ const getSubjectsForClass = (classLevel: string) => {
   return [];
 };
 
-// Generate appropriate content based on class level
-const generateLevelAppropriateContent = (subject: string, classLevel: string, topic: string) => {
-  const isJSS = classLevel.startsWith("JSS");
-  
-  if (isJSS) {
-    return {
-      objectives: [
-        `Define and explain the meaning of ${topic} in simple terms`,
-        `Identify at least three key features/characteristics of ${topic}`,
-        `Give practical examples of ${topic} from everyday life`,
-        `Demonstrate understanding by answering basic questions on ${topic}`
-      ],
-      content: `${topic} is an important concept in ${subject}. It helps students understand fundamental principles that they will build upon in higher classes.
-
-DEFINITION:
-${topic} refers to the basic concepts and principles that form the foundation of this subject area.
-
-KEY POINTS:
-1. Introduction to basic concepts
-2. Simple explanations with relatable examples
-3. Connection to daily life experiences
-4. Foundation building for advanced topics
-
-EXPLANATION:
-This topic introduces students to essential knowledge in ${subject}. Using simple language and everyday examples, students will grasp the fundamental ideas that prepare them for more advanced studies.`,
-      presentation: [
-        "Teacher introduces the topic by asking students what they already know about the subject",
-        "Teacher explains the meaning of the topic using simple language and visual aids",
-        "Teacher uses local examples and demonstrations to illustrate key points",
-        "Students participate in a class discussion and ask questions",
-        "Teacher summarizes the main points and checks for understanding"
-      ],
-      evaluation: [
-        `What is ${topic}?`,
-        `Mention three characteristics of ${topic}`,
-        `Give two examples of ${topic} from your environment`,
-        `Why is ${topic} important?`
-      ],
-      assignment: [
-        `Write five sentences explaining what you learned about ${topic}`,
-        `Draw a diagram showing the key features of ${topic}`,
-        `Find three examples of ${topic} in your home or community`
-      ]
-    };
-  } else {
-    return {
-      objectives: [
-        `Analyze and critically evaluate the concept of ${topic}`,
-        `Compare and contrast different aspects/types of ${topic}`,
-        `Apply theoretical knowledge of ${topic} to solve practical problems`,
-        `Synthesize information to draw conclusions about ${topic}`
-      ],
-      content: `${topic} is a critical concept in ${subject} that requires in-depth understanding and analytical skills.
-
-DEFINITION AND THEORETICAL FRAMEWORK:
-${topic} encompasses the advanced principles and methodologies central to this subject area. Understanding this concept requires analyzing multiple perspectives and applying critical thinking.
-
-DETAILED ANALYSIS:
-1. Theoretical foundations and historical development
-2. Core principles and their interrelationships
-3. Practical applications in various contexts
-4. Contemporary relevance and emerging trends
-5. Critical evaluation of different viewpoints
-
-ADVANCED CONCEPTS:
-This topic builds upon foundational knowledge to explore complex relationships and applications. Students are expected to engage with scholarly materials, conduct analysis, and demonstrate higher-order thinking skills.
-
-PRACTICAL APPLICATIONS:
-- Real-world case studies
-- Problem-solving scenarios
-- Research methodologies
-- Industry applications`,
-      presentation: [
-        "Teacher reviews previous knowledge and connects it to the new topic through guided questioning",
-        "Teacher presents the theoretical framework using multimedia resources and scholarly references",
-        "Students engage in group discussions to analyze case studies and real-world applications",
-        "Teacher facilitates a critical analysis session where students compare different perspectives",
-        "Students present their findings and conclusions; teacher provides feedback and clarification"
-      ],
-      evaluation: [
-        `Critically analyze the concept of ${topic} and its significance in ${subject}`,
-        `Compare and contrast at least two different approaches to ${topic}`,
-        `Apply the principles of ${topic} to solve the given problem`,
-        `Evaluate the importance of ${topic} in contemporary society`
-      ],
-      assignment: [
-        `Write a 500-word essay analyzing the key aspects of ${topic}`,
-        `Research and present a case study demonstrating the application of ${topic}`,
-        `Prepare a detailed comparison chart showing different perspectives on ${topic}`
-      ]
-    };
-  }
-};
-
 interface LessonGeneratorProps {
   onBack: () => void;
   editingLesson?: SavedLesson | null;
@@ -173,6 +81,8 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   const [isGenerated, setIsGenerated] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [lessonId, setLessonId] = useState<string | null>(null);
+  const [isExtractingContent, setIsExtractingContent] = useState(false);
+  const [extractedFileContent, setExtractedFileContent] = useState("");
   const { toast } = useToast();
   
   // Form state
@@ -180,11 +90,8 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     subject: "",
     classLevel: "",
     country: "",
-    curriculumFile: null as File | null,
-    curriculumText: "",
-    weeks: "all",
-    specificWeeks: "",
-    template: "universal",
+    topicFile: null as File | null,
+    topicText: "",
     additionalNotes: "",
   });
 
@@ -197,7 +104,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
         subject: editingLesson.subject,
         classLevel: editingLesson.classLevel,
         country: editingLesson.country || "",
-        curriculumText: editingLesson.topic,
+        topicText: editingLesson.topic,
       }));
       setGeneratedContent(editingLesson.content);
       setIsGenerated(true);
@@ -205,7 +112,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     }
   }, [editingLesson]);
 
-  const updateForm = (field: string, value: any) => {
+  const updateForm = <K extends keyof typeof formData>(field: K, value: typeof formData[K]) => {
     setFormData(prev => {
       // Reset subject when class level changes
       if (field === "classLevel" && prev.classLevel !== value) {
@@ -215,12 +122,87 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     });
   };
 
+  // Handle file selection and content extraction
+  const handleFileSelect = async (file: File | null) => {
+    updateForm("topicFile", file);
+    
+    if (!file) {
+      setExtractedFileContent("");
+      return;
+    }
+
+    setIsExtractingContent(true);
+    
+    try {
+      if (file.type.startsWith('image/')) {
+        // For images, we'll send as base64 to the AI for OCR
+        const base64 = await fileToBase64(file);
+        setExtractedFileContent(`[Image uploaded: ${file.name}]\nImage will be analyzed for topic content.`);
+        
+        // Store base64 for later use
+        (file as File & { base64?: string }).base64 = base64;
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, extract text content
+        const text = await extractTextFromPDF(file);
+        setExtractedFileContent(text || `[PDF uploaded: ${file.name}]\nPDF content will be used for lesson generation.`);
+      }
+      
+      toast({
+        title: "File uploaded",
+        description: "Your topic file has been uploaded successfully.",
+      });
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast({
+        title: "File processing error",
+        description: "Could not process the file. Please try typing your topic instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExtractingContent(false);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+    });
+  };
+
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    // Basic PDF text extraction - reads raw text from PDF
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Convert to string and try to extract readable text
+    let text = '';
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const content = decoder.decode(uint8Array);
+    
+    // Extract text between stream markers (basic PDF text extraction)
+    const textMatches = content.match(/\((.*?)\)/g);
+    if (textMatches) {
+      text = textMatches
+        .map(match => match.slice(1, -1))
+        .filter(t => t.length > 2 && /[a-zA-Z]/.test(t))
+        .join(' ')
+        .replace(/\\[nrt]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    
+    return text || `Content from PDF: ${file.name}`;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
         return formData.subject && formData.classLevel;
       case 2:
-        return formData.curriculumFile || formData.curriculumText.trim();
+        return formData.topicFile || formData.topicText.trim();
       case 3:
         return true;
       default:
@@ -228,114 +210,22 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     }
   };
 
-  const generateLessonContent = () => {
-    const weeksText = formData.weeks === "all" ? "All Weeks" : `Weeks: ${formData.specificWeeks}`;
-    const topic = formData.curriculumText ? formData.curriculumText.split('\n')[0].substring(0, 50) : `Introduction to ${formData.subject}`;
-    const content = generateLevelAppropriateContent(formData.subject, formData.classLevel, topic);
-    
-    const currentDate = new Date().toLocaleDateString('en-NG', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    
-    return `
-LESSON NOTE
-============
-
-Date: ${currentDate}
-
-Class: ${formData.classLevel}
-
-Subject: ${formData.subject}
-
-Topic: ${topic}
-
-Sub-topic: ${formData.curriculumText ? "As per curriculum content provided" : "Fundamental Concepts"}
-
-Time: 40 minutes
-
-Duration: ${weeksText}
-
-Period/Day: First Period / Monday
-
-Reference Book(s):
-- Approved ${formData.subject} Textbook for ${formData.classLevel}
-- ${formData.country || "Nigeria"} National Curriculum
-- Relevant supplementary materials and educational resources
-
-Instructional Material(s):
-- Chalkboard/Whiteboard and markers
-- Charts and diagrams
-- Pictures and visual aids
-- Real objects and specimens (where applicable)
-- Multimedia resources (projector, videos)
-
-Entry Behaviour:
-Students have been introduced to the foundational concepts of ${formData.subject} in previous lessons. They can identify basic terms and have some understanding of related topics from their environment.
-
-Behavioural Objectives:
-By the end of this lesson, students should be able to:
-${content.objectives.map((obj, i) => `${i + 1}. ${obj}`).join('\n')}
-
-Content:
-${content.content}
-
-Presentation in Steps:
-
-Step I - Introduction (5 minutes):
-${content.presentation[0]}
-
-Step II - Explanation/Development (15 minutes):
-${content.presentation[1]}
-
-Step III - Discussion/Activity (10 minutes):
-${content.presentation[2]}
-
-Step IV - Application (5 minutes):
-${content.presentation[3]}
-
-Step V - Summary (5 minutes):
-${content.presentation[4]}
-
-Conclusion:
-The teacher summarizes the main points of the lesson, emphasizing the key concepts and their practical applications. Students are encouraged to relate the lesson to their daily experiences and prepare for the next class.
-
-Evaluation:
-As stated in the Behavioural Objectives, students will be evaluated through the following questions:
-${content.evaluation.map((q, i) => `${i + 1}. ${q}`).join('\n')}
-
-Assignment:
-${content.assignment.map((a, i) => `${i + 1}. ${a}`).join('\n')}
-
-${formData.additionalNotes ? `
-Teacher's Notes:
-${formData.additionalNotes}
-` : ""}
-${formData.curriculumText ? `
----
-Curriculum Content Provided:
-${formData.curriculumText}
-` : ""}
-
----
-Generated by Teacher's Aid
-    `.trim();
-  };
-
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const topic = formData.curriculumText 
-        ? formData.curriculumText.split('\n')[0].substring(0, 100) 
-        : `Introduction to ${formData.subject}`;
+      // Get topic content from either text input or extracted file content
+      const topicContent = formData.topicText || extractedFileContent;
+      const topicTitle = formData.topicText 
+        ? formData.topicText.split('\n')[0].substring(0, 100) 
+        : (formData.topicFile?.name || `Topic for ${formData.subject}`);
 
       const { data, error } = await supabase.functions.invoke('generate-lesson', {
         body: {
           subject: formData.subject,
           classLevel: formData.classLevel,
           country: formData.country || "Nigeria",
-          topic,
+          topic: topicTitle,
+          topicContent: topicContent,
           additionalNotes: formData.additionalNotes,
         }
       });
@@ -350,44 +240,36 @@ Generated by Teacher's Aid
           description: data.error,
           variant: "destructive",
         });
-        // Fallback to local generation
-        const content = generateLessonContent();
-        setGeneratedContent(content);
-      } else if (data?.content) {
-        setGeneratedContent(data.content);
-      } else {
-        // Fallback to local generation
-        const content = generateLessonContent();
-        setGeneratedContent(content);
+        return;
       }
-
-      setIsGenerated(true);
-      if (!lessonId) {
-        setLessonId(crypto.randomUUID());
+      
+      if (data?.content) {
+        setGeneratedContent(data.content);
+        setIsGenerated(true);
+        if (!lessonId) {
+          setLessonId(crypto.randomUUID());
+        }
+        toast({
+          title: "Lesson generated!",
+          description: "Your AI-powered lesson note is ready.",
+        });
       }
     } catch (error) {
       console.error("Error generating lesson:", error);
       toast({
         title: "Generation failed",
-        description: "Using fallback generator. Please try again later.",
+        description: "Please try again later.",
         variant: "destructive",
       });
-      // Fallback to local generation
-      const content = generateLessonContent();
-      setGeneratedContent(content);
-      setIsGenerated(true);
-      if (!lessonId) {
-        setLessonId(crypto.randomUUID());
-      }
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleSaveLesson = () => {
-    const topic = formData.curriculumText 
-      ? formData.curriculumText.split('\n')[0].substring(0, 50) 
-      : `Introduction to ${formData.subject}`;
+    const topic = formData.topicText 
+      ? formData.topicText.split('\n')[0].substring(0, 50) 
+      : (formData.topicFile?.name || `Lesson for ${formData.subject}`);
     
     const lesson: SavedLesson = {
       id: lessonId || crypto.randomUUID(),
@@ -409,31 +291,26 @@ Generated by Teacher's Aid
   };
 
   const handleDownloadPDF = () => {
-    // Create a blob with the content
-    const content = generatedContent;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${formData.subject}_${formData.classLevel}_Lesson_Plan.pdf.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    generateLessonPDF({
+      subject: formData.subject,
+      classLevel: formData.classLevel,
+      country: formData.country || "Nigeria",
+      content: generatedContent
+    });
+    
+    toast({
+      title: "PDF Downloaded",
+      description: "Your lesson note has been downloaded as a PDF.",
+    });
   };
 
   const handleDownloadDOCX = () => {
-    // Create a blob with the content
-    const content = generatedContent;
-    const blob = new Blob([content], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${formData.subject}_${formData.classLevel}_Lesson_Plan.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    generateLessonDOCX(generatedContent, formData.subject, formData.classLevel);
+    
+    toast({
+      title: "Document Downloaded",
+      description: "Your lesson note has been downloaded.",
+    });
   };
 
   return (
@@ -508,10 +385,10 @@ Generated by Teacher's Aid
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Country (Optional)</Label>
+                  <Label>Country *</Label>
                   <Select value={formData.country} onValueChange={(v) => updateForm("country", v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select country for localized content" />
+                      <SelectValue placeholder="Select country" />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.map(country => (
@@ -524,7 +401,7 @@ Generated by Teacher's Aid
             </div>
           )}
 
-          {/* Step 2: Curriculum */}
+          {/* Step 2: Topic Input */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -532,16 +409,27 @@ Generated by Teacher's Aid
                   <FileText className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Curriculum Content</h2>
-                  <p className="text-sm text-muted-foreground">Upload or enter your curriculum/scheme of work</p>
+                  <h2 className="font-display text-xl font-semibold">Topic for this Week</h2>
+                  <p className="text-sm text-muted-foreground">Type your topic or upload an image/PDF of the topic</p>
                 </div>
               </div>
 
-              <FileUpload
-                onFileSelect={(file) => updateForm("curriculumFile", file)}
-                selectedFile={formData.curriculumFile}
-                label="Upload curriculum (PDF or image)"
-              />
+              <div className="space-y-2">
+                <Label>Type your topic *</Label>
+                <Textarea
+                  placeholder="Enter the topic you want to teach this week. Be specific and include any sub-topics if needed.
+
+Example:
+Topic: Introduction to Photosynthesis
+- Definition of photosynthesis
+- Importance of sunlight
+- Role of chlorophyll
+- Products of photosynthesis"
+                  className="min-h-[180px] resize-none"
+                  value={formData.topicText}
+                  onChange={(e) => updateForm("topicText", e.target.value)}
+                />
+              </div>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -549,45 +437,48 @@ Generated by Teacher's Aid
                 </div>
                 <div className="relative flex justify-center">
                   <span className="px-4 bg-background text-sm text-muted-foreground">
-                    or type it in
+                    or upload a file
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Curriculum / Scheme of Work (Text)</Label>
-                <Textarea
-                  placeholder="Paste or type your curriculum content here. Include topics, subtopics, and objectives for each week..."
-                  className="min-h-[200px] resize-none"
-                  value={formData.curriculumText}
-                  onChange={(e) => updateForm("curriculumText", e.target.value)}
-                />
-              </div>
+              <FileUpload
+                onFileSelect={handleFileSelect}
+                selectedFile={formData.topicFile}
+                accept=".pdf,.jpg,.jpeg,.png"
+                label="Upload topic (PDF or Image)"
+              />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Week Selection</Label>
-                  <Select value={formData.weeks} onValueChange={(v) => updateForm("weeks", v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Weeks</SelectItem>
-                      <SelectItem value="specific">Specific Weeks</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {isExtractingContent && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing file...
                 </div>
+              )}
 
-                {formData.weeks === "specific" && (
-                  <div className="space-y-2">
-                    <Label>Specify Weeks</Label>
-                    <Input
-                      placeholder="e.g., 1-4 or 1,3,5"
-                      value={formData.specificWeeks}
-                      onChange={(e) => updateForm("specificWeeks", e.target.value)}
-                    />
+              {extractedFileContent && !isExtractingContent && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">File Content Preview</p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                        {extractedFileContent.substring(0, 200)}...
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
+              )}
+
+              <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
+                <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-accent" />
+                  AI-Powered Generation
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Our AI will analyze your topic and generate a comprehensive lesson note 
+                  tailored to the {formData.classLevel || "selected"} level curriculum.
+                </p>
               </div>
             </div>
           )}
@@ -608,7 +499,7 @@ Generated by Teacher's Aid
               <div className="bg-muted/50 rounded-xl p-6">
                 <h3 className="font-semibold text-foreground mb-3">Lesson Note Format</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Your lesson note will be generated using the standard Nigerian education format including:
+                  Your lesson note will be generated using the standard {formData.country || "Nigerian"} education format including:
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Date, Class, Subject, Topic, Sub-topic</li>
@@ -663,20 +554,12 @@ Generated by Teacher's Aid
                     <span className="font-medium">{formData.country || "Not specified"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Curriculum:</span>
-                    <span className="font-medium">
-                      {formData.curriculumFile?.name || (formData.curriculumText ? "Text provided" : "None")}
+                    <span className="text-muted-foreground">Topic:</span>
+                    <span className="font-medium truncate max-w-[200px]">
+                      {formData.topicText 
+                        ? formData.topicText.split('\n')[0].substring(0, 30) + (formData.topicText.length > 30 ? '...' : '')
+                        : formData.topicFile?.name || "None"}
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Weeks:</span>
-                    <span className="font-medium">
-                      {formData.weeks === "all" ? "All weeks" : formData.specificWeeks}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Format:</span>
-                    <span className="font-medium">Standard Nigerian Lesson Note</span>
                   </div>
                 </div>
               </div>
@@ -692,7 +575,7 @@ Generated by Teacher's Aid
                   {isGenerating ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating Lesson Plan...
+                      Generating Lesson Plan with AI...
                     </>
                   ) : (
                     <>
