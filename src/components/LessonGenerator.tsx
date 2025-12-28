@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { SavedLesson, saveLessonToStorage } from "@/types/lesson";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { generateLessonPDF, generateLessonDOCX } from "@/lib/pdfGenerator";
+import { generateLessonPDF, generateLessonDOCX, generateLessonTeX } from "@/lib/pdfGenerator";
 
 const steps = [
   { id: 1, title: "Subject", description: "Choose subject & class" },
@@ -83,6 +83,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [isExtractingContent, setIsExtractingContent] = useState(false);
   const [extractedFileContent, setExtractedFileContent] = useState("");
+  const [isMathSubject, setIsMathSubject] = useState(false);
   const { toast } = useToast();
   
   // Form state
@@ -92,6 +93,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     country: "",
     topicFile: null as File | null,
     topicText: "",
+    week: "",
     additionalNotes: "",
   });
 
@@ -135,11 +137,11 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     
     try {
       if (file.type.startsWith('image/')) {
-        // For images, we'll send as base64 to the AI for OCR
+        // For images, we'll send as base64 to the AI for vision analysis
         const base64 = await fileToBase64(file);
-        setExtractedFileContent(`[Image uploaded: ${file.name}]\nImage will be analyzed for topic content.`);
+        setExtractedFileContent(`[Image uploaded: ${file.name}]\nImage will be analyzed with AI vision for topic content.`);
         
-        // Store base64 for later use
+        // Store base64 for later use with AI vision
         (file as File & { base64?: string }).base64 = base64;
       } else if (file.type === 'application/pdf') {
         // For PDFs, extract text content
@@ -202,7 +204,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       case 1:
         return formData.subject && formData.classLevel;
       case 2:
-        return formData.topicFile || formData.topicText.trim();
+        return (formData.topicFile || formData.topicText.trim()) && formData.week;
       case 3:
         return true;
       default:
@@ -219,6 +221,11 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
         ? formData.topicText.split('\n')[0].substring(0, 100) 
         : (formData.topicFile?.name || `Topic for ${formData.subject}`);
 
+      // Get base64 from uploaded image file if available
+      const imageBase64 = formData.topicFile?.type?.startsWith('image/') 
+        ? (formData.topicFile as File & { base64?: string }).base64 
+        : undefined;
+
       const { data, error } = await supabase.functions.invoke('generate-lesson', {
         body: {
           subject: formData.subject,
@@ -226,7 +233,9 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
           country: formData.country || "Nigeria",
           topic: topicTitle,
           topicContent: topicContent,
+          week: formData.week,
           additionalNotes: formData.additionalNotes,
+          imageBase64: imageBase64,
         }
       });
 
@@ -245,13 +254,16 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       
       if (data?.content) {
         setGeneratedContent(data.content);
+        setIsMathSubject(data.isMathSubject || false);
         setIsGenerated(true);
         if (!lessonId) {
           setLessonId(crypto.randomUUID());
         }
         toast({
           title: "Lesson generated!",
-          description: "Your AI-powered lesson note is ready.",
+          description: data.isMathSubject 
+            ? "Your AI-powered math lesson with LaTeX notation is ready."
+            : "Your AI-powered lesson note is ready.",
         });
       }
     } catch (error) {
@@ -295,7 +307,8 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       subject: formData.subject,
       classLevel: formData.classLevel,
       country: formData.country || "Nigeria",
-      content: generatedContent
+      content: generatedContent,
+      week: formData.week
     });
     
     toast({
@@ -305,11 +318,20 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   };
 
   const handleDownloadDOCX = () => {
-    generateLessonDOCX(generatedContent, formData.subject, formData.classLevel);
+    generateLessonDOCX(generatedContent, formData.subject, formData.classLevel, formData.week);
     
     toast({
       title: "Document Downloaded",
       description: "Your lesson note has been downloaded.",
+    });
+  };
+
+  const handleDownloadTeX = () => {
+    generateLessonTeX(generatedContent, formData.subject, formData.classLevel, formData.week);
+    
+    toast({
+      title: "LaTeX Downloaded",
+      description: "Your math lesson with LaTeX notation has been downloaded.",
     });
   };
 
@@ -410,8 +432,20 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                 </div>
                 <div>
                   <h2 className="font-display text-xl font-semibold">Topic for this Week</h2>
-                  <p className="text-sm text-muted-foreground">Type your topic or upload an image/PDF of the topic</p>
+                  <p className="text-sm text-muted-foreground">Enter the week number and topic details</p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Week Number *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="52"
+                  placeholder="Enter week number (e.g., 1, 2, 3...)"
+                  value={formData.week}
+                  onChange={(e) => updateForm("week", e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
@@ -425,7 +459,7 @@ Topic: Introduction to Photosynthesis
 - Importance of sunlight
 - Role of chlorophyll
 - Products of photosynthesis"
-                  className="min-h-[180px] resize-none"
+                  className="min-h-[150px] resize-none"
                   value={formData.topicText}
                   onChange={(e) => updateForm("topicText", e.target.value)}
                 />
@@ -554,6 +588,10 @@ Topic: Introduction to Photosynthesis
                     <span className="font-medium">{formData.country || "Not specified"}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Week:</span>
+                    <span className="font-medium">{formData.week ? `Week ${formData.week}` : "Not specified"}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Topic:</span>
                     <span className="font-medium truncate max-w-[200px]">
                       {formData.topicText 
@@ -561,6 +599,12 @@ Topic: Introduction to Photosynthesis
                         : formData.topicFile?.name || "None"}
                     </span>
                   </div>
+                  {(formData.subject === "General Mathematics" || formData.subject === "Further Mathematics" || formData.subject === "Mathematics") && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Output:</span>
+                      <span className="font-medium text-primary">LaTeX + DOCX</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -602,7 +646,7 @@ Topic: Introduction to Photosynthesis
                         {editingLesson ? "Update Lesson" : "Save to Dashboard"}
                       </Button>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
                       <Button variant="outline" size="lg" onClick={handleDownloadPDF}>
                         <Download className="w-5 h-5" />
                         Download PDF
@@ -611,6 +655,12 @@ Topic: Introduction to Photosynthesis
                         <Download className="w-5 h-5" />
                         Download DOCX
                       </Button>
+                      {isMathSubject && (
+                        <Button variant="outline" size="lg" onClick={handleDownloadTeX}>
+                          <Download className="w-5 h-5" />
+                          Download TeX
+                        </Button>
+                      )}
                     </div>
                   </div>
 
