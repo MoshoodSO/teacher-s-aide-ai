@@ -23,17 +23,17 @@ import {
   Sparkles,
   Loader2,
   Save,
-  AlertCircle
+  Plus,
+  Trash2
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { SavedLesson, saveLessonToStorage } from "@/types/lesson";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateLessonPDF, generateLessonDOCX, generateLessonTeX } from "@/lib/pdfGenerator";
 
 const steps = [
-  { id: 1, title: "Subject", description: "Choose subject & class" },
-  { id: 2, title: "Topic", description: "Enter or upload topic" },
+  { id: 1, title: "Lessons", description: "Add classes & subjects" },
+  { id: 2, title: "Topics", description: "Enter topics for each" },
   { id: 3, title: "Settings", description: "Customize output" },
   { id: 4, title: "Generate", description: "Review & download" },
 ];
@@ -75,38 +75,53 @@ interface LessonGeneratorProps {
   onSaveComplete?: () => void;
 }
 
+interface LessonEntry {
+  id: string;
+  classLevel: string;
+  subject: string;
+  topicText: string;
+  topicFile: File | null;
+}
+
 export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: LessonGeneratorProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenerated, setIsGenerated] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [lessonId, setLessonId] = useState<string | null>(null);
-  const [isExtractingContent, setIsExtractingContent] = useState(false);
-  const [extractedFileContent, setExtractedFileContent] = useState("");
   const [isMathSubject, setIsMathSubject] = useState(false);
   const { toast } = useToast();
   
-  // Form state
+  // Batch lesson entries
+  const [lessonEntries, setLessonEntries] = useState<LessonEntry[]>([
+    { id: crypto.randomUUID(), classLevel: "", subject: "", topicText: "", topicFile: null }
+  ]);
+  
+  // Shared form data
   const [formData, setFormData] = useState({
-    subject: "",
-    classLevel: "",
     country: "",
-    topicFile: null as File | null,
-    topicText: "",
     week: "",
+    weekDate: "",
     additionalNotes: "",
   });
+
+  // Generated content for batch lessons
+  const [generatedLessons, setGeneratedLessons] = useState<{ entry: LessonEntry; content: string; isMathSubject: boolean }[]>([]);
 
   // Load editing lesson data
   useEffect(() => {
     if (editingLesson) {
       setLessonId(editingLesson.id);
+      setLessonEntries([{
+        id: crypto.randomUUID(),
+        classLevel: editingLesson.classLevel,
+        subject: editingLesson.subject,
+        topicText: editingLesson.topic,
+        topicFile: null
+      }]);
       setFormData(prev => ({
         ...prev,
-        subject: editingLesson.subject,
-        classLevel: editingLesson.classLevel,
         country: editingLesson.country || "",
-        topicText: editingLesson.topic,
       }));
       setGeneratedContent(editingLesson.content);
       setIsGenerated(true);
@@ -115,54 +130,38 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   }, [editingLesson]);
 
   const updateForm = <K extends keyof typeof formData>(field: K, value: typeof formData[K]) => {
-    setFormData(prev => {
-      // Reset subject when class level changes
-      if (field === "classLevel" && prev.classLevel !== value) {
-        return { ...prev, [field]: value, subject: "" };
-      }
-      return { ...prev, [field]: value };
-    });
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle file selection and content extraction
-  const handleFileSelect = async (file: File | null) => {
-    updateForm("topicFile", file);
-    
-    if (!file) {
-      setExtractedFileContent("");
-      return;
-    }
+  const addLessonEntry = () => {
+    setLessonEntries(prev => [...prev, {
+      id: crypto.randomUUID(),
+      classLevel: "",
+      subject: "",
+      topicText: "",
+      topicFile: null
+    }]);
+  };
 
-    setIsExtractingContent(true);
-    
-    try {
-      if (file.type.startsWith('image/')) {
-        // For images, we'll send as base64 to the AI for vision analysis
-        const base64 = await fileToBase64(file);
-        setExtractedFileContent(`[Image uploaded: ${file.name}]\nImage will be analyzed with AI vision for topic content.`);
-        
-        // Store base64 for later use with AI vision
-        (file as File & { base64?: string }).base64 = base64;
-      } else if (file.type === 'application/pdf') {
-        // For PDFs, extract text content
-        const text = await extractTextFromPDF(file);
-        setExtractedFileContent(text || `[PDF uploaded: ${file.name}]\nPDF content will be used for lesson generation.`);
-      }
-      
-      toast({
-        title: "File uploaded",
-        description: "Your topic file has been uploaded successfully.",
-      });
-    } catch (error) {
-      console.error("Error processing file:", error);
-      toast({
-        title: "File processing error",
-        description: "Could not process the file. Please try typing your topic instead.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsExtractingContent(false);
+  const removeLessonEntry = (id: string) => {
+    if (lessonEntries.length > 1) {
+      setLessonEntries(prev => prev.filter(entry => entry.id !== id));
     }
+  };
+
+  const updateLessonEntry = (id: string, field: keyof LessonEntry, value: string | File | null) => {
+    setLessonEntries(prev => prev.map(entry => {
+      if (entry.id === id) {
+        if (field === "classLevel") {
+          return { ...entry, classLevel: value as string, subject: "" };
+        }
+        if (field === "topicFile") {
+          return { ...entry, topicFile: value as File | null };
+        }
+        return { ...entry, [field]: value as string };
+      }
+      return entry;
+    }));
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -174,37 +173,25 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     });
   };
 
-  const extractTextFromPDF = async (file: File): Promise<string> => {
-    // Basic PDF text extraction - reads raw text from PDF
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+  const handleFileSelectForEntry = async (entryId: string, file: File | null) => {
+    updateLessonEntry(entryId, "topicFile", file);
     
-    // Convert to string and try to extract readable text
-    let text = '';
-    const decoder = new TextDecoder('utf-8', { fatal: false });
-    const content = decoder.decode(uint8Array);
-    
-    // Extract text between stream markers (basic PDF text extraction)
-    const textMatches = content.match(/\((.*?)\)/g);
-    if (textMatches) {
-      text = textMatches
-        .map(match => match.slice(1, -1))
-        .filter(t => t.length > 2 && /[a-zA-Z]/.test(t))
-        .join(' ')
-        .replace(/\\[nrt]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    if (file && file.type.startsWith('image/')) {
+      try {
+        const base64 = await fileToBase64(file);
+        (file as File & { base64?: string }).base64 = base64;
+      } catch (error) {
+        console.error("Error processing file:", error);
+      }
     }
-    
-    return text || `Content from PDF: ${file.name}`;
   };
 
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return formData.subject && formData.classLevel;
+        return lessonEntries.every(entry => entry.subject && entry.classLevel) && formData.country;
       case 2:
-        return (formData.topicFile || formData.topicText.trim()) && formData.week;
+        return lessonEntries.every(entry => entry.topicText.trim() || entry.topicFile) && formData.week && formData.weekDate;
       case 3:
         return true;
       default:
@@ -212,62 +199,77 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     }
   };
 
+  // Helper to clean ** bold markers from content
+  const cleanBoldMarkers = (content: string): string => {
+    return content.replace(/\*\*/g, '');
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
+    const generatedResults: { entry: LessonEntry; content: string; isMathSubject: boolean }[] = [];
+    
     try {
-      // Get topic content from either text input or extracted file content
-      const topicContent = formData.topicText || extractedFileContent;
-      const topicTitle = formData.topicText 
-        ? formData.topicText.split('\n')[0].substring(0, 100) 
-        : (formData.topicFile?.name || `Topic for ${formData.subject}`);
+      for (const entry of lessonEntries) {
+        const topicContent = entry.topicText || (entry.topicFile ? `Content from file: ${entry.topicFile.name}` : '');
+        const topicTitle = entry.topicText 
+          ? entry.topicText.split('\n')[0].substring(0, 100) 
+          : (entry.topicFile?.name || `Topic for ${entry.subject}`);
 
-      // Get base64 from uploaded image file if available
-      const imageBase64 = formData.topicFile?.type?.startsWith('image/') 
-        ? (formData.topicFile as File & { base64?: string }).base64 
-        : undefined;
+        const imageBase64 = entry.topicFile?.type?.startsWith('image/') 
+          ? (entry.topicFile as File & { base64?: string }).base64 
+          : undefined;
 
-      const { data, error } = await supabase.functions.invoke('generate-lesson', {
-        body: {
-          subject: formData.subject,
-          classLevel: formData.classLevel,
-          country: formData.country || "Nigeria",
-          topic: topicTitle,
-          topicContent: topicContent,
-          week: formData.week,
-          additionalNotes: formData.additionalNotes,
-          imageBase64: imageBase64,
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data?.error) {
-        toast({
-          title: "Generation Error",
-          description: data.error,
-          variant: "destructive",
+        const { data, error } = await supabase.functions.invoke('generate-lesson', {
+          body: {
+            subject: entry.subject,
+            classLevel: entry.classLevel,
+            country: formData.country || "Nigeria",
+            topic: topicTitle,
+            topicContent: topicContent,
+            week: formData.week,
+            weekDate: formData.weekDate,
+            additionalNotes: formData.additionalNotes,
+            imageBase64: imageBase64,
+          }
         });
-        return;
-      }
-      
-      if (data?.content) {
-        setGeneratedContent(data.content);
-        setIsMathSubject(data.isMathSubject || false);
-        setIsGenerated(true);
-        if (!lessonId) {
-          setLessonId(crypto.randomUUID());
+
+        if (error) throw error;
+
+        if (data?.error) {
+          toast({
+            title: "Generation Error",
+            description: `Failed for ${entry.subject} (${entry.classLevel}): ${data.error}`,
+            variant: "destructive",
+          });
+          continue;
         }
+        
+        if (data?.content) {
+          generatedResults.push({
+            entry,
+            content: cleanBoldMarkers(data.content),
+            isMathSubject: data.isMathSubject || false
+          });
+        }
+      }
+
+      if (generatedResults.length > 0) {
+        setGeneratedLessons(generatedResults);
+        const combinedContent = generatedResults.map(r => r.content).join('\n\n' + '='.repeat(60) + '\n\n');
+        setGeneratedContent(combinedContent);
+        setIsMathSubject(generatedResults.some(r => r.isMathSubject));
+        setIsGenerated(true);
+        if (!lessonId) setLessonId(crypto.randomUUID());
+        
         toast({
-          title: "Lesson generated!",
-          description: data.isMathSubject 
-            ? "Your AI-powered math lesson with LaTeX notation is ready."
+          title: `${generatedResults.length} lesson${generatedResults.length > 1 ? 's' : ''} generated!`,
+          description: generatedResults.length > 1 
+            ? "Your batch lesson notes are ready for download."
             : "Your AI-powered lesson note is ready.",
         });
       }
     } catch (error) {
-      console.error("Error generating lesson:", error);
+      console.error("Error generating lessons:", error);
       toast({
         title: "Generation failed",
         description: "Please try again later.",
@@ -279,60 +281,79 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   };
 
   const handleSaveLesson = () => {
-    const topic = formData.topicText 
-      ? formData.topicText.split('\n')[0].substring(0, 50) 
-      : (formData.topicFile?.name || `Lesson for ${formData.subject}`);
+    generatedLessons.forEach((lessonData, index) => {
+      const topic = lessonData.entry.topicText 
+        ? lessonData.entry.topicText.split('\n')[0].substring(0, 50) 
+        : (lessonData.entry.topicFile?.name || `Lesson for ${lessonData.entry.subject}`);
+      
+      const lesson: SavedLesson = {
+        id: index === 0 && lessonId ? lessonId : crypto.randomUUID(),
+        subject: lessonData.entry.subject,
+        classLevel: lessonData.entry.classLevel,
+        country: formData.country,
+        topic,
+        content: lessonData.content,
+        createdAt: editingLesson?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      saveLessonToStorage(lesson);
+    });
     
-    const lesson: SavedLesson = {
-      id: lessonId || crypto.randomUUID(),
-      subject: formData.subject,
-      classLevel: formData.classLevel,
-      country: formData.country,
-      topic,
-      content: generatedContent,
-      createdAt: editingLesson?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    saveLessonToStorage(lesson);
     toast({
-      title: editingLesson ? "Lesson updated!" : "Lesson saved!",
-      description: "Your lesson has been saved to your dashboard.",
+      title: editingLesson ? "Lesson updated!" : `${generatedLessons.length} lesson${generatedLessons.length > 1 ? 's' : ''} saved!`,
+      description: "Your lessons have been saved to your dashboard.",
     });
     onSaveComplete?.();
   };
 
   const handleDownloadPDF = () => {
+    const subjects = generatedLessons.map(l => l.entry.subject).join(', ');
+    const classes = [...new Set(generatedLessons.map(l => l.entry.classLevel))].join(', ');
+    
     generateLessonPDF({
-      subject: formData.subject,
-      classLevel: formData.classLevel,
+      subject: generatedLessons.length > 1 ? subjects : lessonEntries[0]?.subject || '',
+      classLevel: generatedLessons.length > 1 ? classes : lessonEntries[0]?.classLevel || '',
       country: formData.country || "Nigeria",
       content: generatedContent,
-      week: formData.week
+      week: formData.week,
+      weekDate: formData.weekDate
     });
     
     toast({
       title: "PDF Downloaded",
-      description: "Your lesson note has been downloaded as a PDF.",
+      description: `${generatedLessons.length} lesson note${generatedLessons.length > 1 ? 's have' : ' has'} been downloaded.`,
     });
   };
 
   const handleDownloadDOCX = () => {
-    generateLessonDOCX(generatedContent, formData.subject, formData.classLevel, formData.week);
+    const subjects = generatedLessons.map(l => l.entry.subject).join(', ');
+    const classes = [...new Set(generatedLessons.map(l => l.entry.classLevel))].join(', ');
     
-    toast({
-      title: "Document Downloaded",
-      description: "Your lesson note has been downloaded.",
-    });
+    generateLessonDOCX(
+      generatedContent, 
+      generatedLessons.length > 1 ? subjects : lessonEntries[0]?.subject || '', 
+      generatedLessons.length > 1 ? classes : lessonEntries[0]?.classLevel || '', 
+      formData.week,
+      formData.weekDate
+    );
+    
+    toast({ title: "Document Downloaded", description: "Your lesson note has been downloaded." });
   };
 
   const handleDownloadTeX = () => {
-    generateLessonTeX(generatedContent, formData.subject, formData.classLevel, formData.week);
+    const subjects = generatedLessons.map(l => l.entry.subject).join(', ');
+    const classes = [...new Set(generatedLessons.map(l => l.entry.classLevel))].join(', ');
     
-    toast({
-      title: "LaTeX Downloaded",
-      description: "Your math lesson with LaTeX notation has been downloaded.",
-    });
+    generateLessonTeX(
+      generatedContent, 
+      generatedLessons.length > 1 ? subjects : lessonEntries[0]?.subject || '', 
+      generatedLessons.length > 1 ? classes : lessonEntries[0]?.classLevel || '', 
+      formData.week,
+      formData.weekDate
+    );
+    
+    toast({ title: "LaTeX Downloaded", description: "Your math lesson has been downloaded." });
   };
 
   return (
@@ -348,19 +369,17 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
               Lesson Plan Generator
             </h1>
             <p className="text-muted-foreground">
-              Fill in the details to create your customized lesson plan
+              Create multiple lesson notes at once
             </p>
           </div>
         </div>
 
-        {/* Step Indicator */}
         <div className="mb-12">
           <StepIndicator steps={steps} currentStep={currentStep} />
         </div>
 
-        {/* Form Content */}
         <div className="bg-background rounded-2xl p-6 md:p-8 shadow-card border border-border animate-fade-in">
-          {/* Step 1: Subject & Class */}
+          {/* Step 1: Classes & Subjects */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -368,62 +387,80 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                   <BookOpen className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Subject & Class</h2>
-                  <p className="text-sm text-muted-foreground">Choose the subject and class level</p>
+                  <h2 className="font-display text-xl font-semibold">Add Lessons</h2>
+                  <p className="text-sm text-muted-foreground">Add multiple classes and subjects for batch generation</p>
                 </div>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Class Level *</Label>
-                  <Select value={formData.classLevel} onValueChange={(v) => updateForm("classLevel", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classLevels.map(level => (
-                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Select 
-                    value={formData.subject} 
-                    onValueChange={(v) => updateForm("subject", v)}
-                    disabled={!formData.classLevel}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.classLevel ? "Select subject" : "Select class first"} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {getSubjectsForClass(formData.classLevel).map(subject => (
-                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Country *</Label>
-                  <Select value={formData.country} onValueChange={(v) => updateForm("country", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map(country => (
-                        <SelectItem key={country} value={country}>{country}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2 mb-6">
+                <Label>Country *</Label>
+                <Select value={formData.country} onValueChange={(v) => updateForm("country", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(country => (
+                      <SelectItem key={country} value={country}>{country}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              <div className="space-y-4">
+                {lessonEntries.map((entry, index) => (
+                  <div key={entry.id} className="bg-muted/30 rounded-xl p-4 border border-border">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-medium text-foreground">Lesson {index + 1}</span>
+                      {lessonEntries.length > 1 && (
+                        <Button variant="ghost" size="icon" onClick={() => removeLessonEntry(entry.id)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Class Level *</Label>
+                        <Select value={entry.classLevel} onValueChange={(v) => updateLessonEntry(entry.id, "classLevel", v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {classLevels.map(level => (
+                              <SelectItem key={level} value={level}>{level}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subject *</Label>
+                        <Select 
+                          value={entry.subject} 
+                          onValueChange={(v) => updateLessonEntry(entry.id, "subject", v)}
+                          disabled={!entry.classLevel}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={entry.classLevel ? "Select subject" : "Select class first"} />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            {getSubjectsForClass(entry.classLevel).map(subject => (
+                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button variant="outline" onClick={addLessonEntry} className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Another Lesson
+              </Button>
             </div>
           )}
 
-          {/* Step 2: Topic Input */}
+          {/* Step 2: Topics */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -431,87 +468,67 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                   <FileText className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-semibold">Topic for this Week</h2>
-                  <p className="text-sm text-muted-foreground">Enter the week number and topic details</p>
+                  <h2 className="font-display text-xl font-semibold">Topics for this Week</h2>
+                  <p className="text-sm text-muted-foreground">Enter topics for each lesson</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Week Number *</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="52"
-                  placeholder="Enter week number (e.g., 1, 2, 3...)"
-                  value={formData.week}
-                  onChange={(e) => updateForm("week", e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Type your topic *</Label>
-                <Textarea
-                  placeholder="Enter the topic you want to teach this week. Be specific and include any sub-topics if needed.
-
-Example:
-Topic: Introduction to Photosynthesis
-- Definition of photosynthesis
-- Importance of sunlight
-- Role of chlorophyll
-- Products of photosynthesis"
-                  className="min-h-[150px] resize-none"
-                  value={formData.topicText}
-                  onChange={(e) => updateForm("topicText", e.target.value)}
-                />
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Week Number *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="52"
+                    placeholder="e.g., 1, 2, 3..."
+                    value={formData.week}
+                    onChange={(e) => updateForm("week", e.target.value)}
+                  />
                 </div>
-                <div className="relative flex justify-center">
-                  <span className="px-4 bg-background text-sm text-muted-foreground">
-                    or upload a file
-                  </span>
+                <div className="space-y-2">
+                  <Label>Week Date *</Label>
+                  <Input
+                    type="date"
+                    value={formData.weekDate}
+                    onChange={(e) => updateForm("weekDate", e.target.value)}
+                  />
                 </div>
               </div>
 
-              <FileUpload
-                onFileSelect={handleFileSelect}
-                selectedFile={formData.topicFile}
-                accept=".pdf,.jpg,.jpeg,.png"
-                label="Upload topic (PDF or Image)"
-              />
-
-              {isExtractingContent && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing file...
-                </div>
-              )}
-
-              {extractedFileContent && !isExtractingContent && (
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">File Content Preview</p>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3">
-                        {extractedFileContent.substring(0, 200)}...
-                      </p>
+              <div className="space-y-4">
+                {lessonEntries.map((entry, index) => (
+                  <div key={entry.id} className="bg-muted/30 rounded-xl p-4 border border-border">
+                    <div className="mb-3">
+                      <span className="font-medium text-foreground">
+                        {entry.subject} - {entry.classLevel}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder={`Enter the topic for ${entry.subject}...`}
+                        className="min-h-[100px] resize-none"
+                        value={entry.topicText}
+                        onChange={(e) => updateLessonEntry(entry.id, "topicText", e.target.value)}
+                      />
+                      <div className="text-xs text-muted-foreground">Or upload a file:</div>
+                      <FileUpload
+                        onFileSelect={(file) => handleFileSelectForEntry(entry.id, file)}
+                        selectedFile={entry.topicFile}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        label="Upload topic (PDF or Image)"
+                      />
                     </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
 
               <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
                 <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-accent" />
-                  AI-Powered Generation
+                  AI-Powered Batch Generation
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Our AI will analyze your topic and generate a comprehensive lesson note 
-                  tailored to the {formData.classLevel || "selected"} level curriculum.
+                  All {lessonEntries.length} lesson{lessonEntries.length > 1 ? 's' : ''} will be generated and combined into a single PDF.
                 </p>
               </div>
             </div>
@@ -533,23 +550,22 @@ Topic: Introduction to Photosynthesis
               <div className="bg-muted/50 rounded-xl p-6">
                 <h3 className="font-semibold text-foreground mb-3">Lesson Note Format</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Your lesson note will be generated using the standard {formData.country || "Nigerian"} education format including:
+                  Your lesson notes will be generated using the standard {formData.country || "Nigerian"} education format.
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Date, Class, Subject, Topic, Sub-topic</li>
-                  <li>• Time, Duration, Period/Day</li>
-                  <li>• Reference Books & Instructional Materials</li>
-                  <li>• Entry Behaviour & Behavioural Objectives</li>
-                  <li>• Content (comprehensive and level-appropriate)</li>
-                  <li>• Presentation in Steps (I to V)</li>
-                  <li>• Conclusion, Evaluation & Assignment</li>
+                  <li>Date, Class, Subject, Topic, Sub-topic</li>
+                  <li>Time, Duration, Period/Day</li>
+                  <li>Reference Books & Instructional Materials</li>
+                  <li>Entry Behaviour & Behavioural Objectives</li>
+                  <li>Content, Presentation Steps</li>
+                  <li>Conclusion, Evaluation & Assignment</li>
                 </ul>
               </div>
 
               <div className="space-y-2">
                 <Label>Additional Notes (Optional)</Label>
                 <Textarea
-                  placeholder="Any specific requirements, special considerations, or additional information for the lesson note..."
+                  placeholder="Any specific requirements, special considerations, or additional information..."
                   className="min-h-[120px] resize-none"
                   value={formData.additionalNotes}
                   onChange={(e) => updateForm("additionalNotes", e.target.value)}
@@ -571,17 +587,12 @@ Topic: Introduction to Photosynthesis
                 </div>
               </div>
 
-              {/* Summary */}
               <div className="bg-muted/50 rounded-xl p-6 space-y-4">
                 <h3 className="font-semibold text-foreground">Summary</h3>
                 <div className="grid gap-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subject:</span>
-                    <span className="font-medium">{formData.subject || "Not selected"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Class:</span>
-                    <span className="font-medium">{formData.classLevel || "Not selected"}</span>
+                    <span className="text-muted-foreground">Lessons:</span>
+                    <span className="font-medium">{lessonEntries.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Country:</span>
@@ -592,19 +603,17 @@ Topic: Introduction to Photosynthesis
                     <span className="font-medium">{formData.week ? `Week ${formData.week}` : "Not specified"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Topic:</span>
-                    <span className="font-medium truncate max-w-[200px]">
-                      {formData.topicText 
-                        ? formData.topicText.split('\n')[0].substring(0, 30) + (formData.topicText.length > 30 ? '...' : '')
-                        : formData.topicFile?.name || "None"}
-                    </span>
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-medium">{formData.weekDate || "Not specified"}</span>
                   </div>
-                  {(formData.subject === "General Mathematics" || formData.subject === "Further Mathematics" || formData.subject === "Mathematics") && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Output:</span>
-                      <span className="font-medium text-primary">LaTeX + DOCX</span>
+                </div>
+                <div className="border-t border-border pt-3 mt-3">
+                  {lessonEntries.map((entry, index) => (
+                    <div key={entry.id} className="flex justify-between py-1 text-sm">
+                      <span className="text-muted-foreground">{index + 1}. {entry.classLevel}</span>
+                      <span className="font-medium">{entry.subject}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
@@ -619,12 +628,12 @@ Topic: Introduction to Photosynthesis
                   {isGenerating ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating Lesson Plan with AI...
+                      Generating {lessonEntries.length} Lesson{lessonEntries.length > 1 ? 's' : ''}...
                     </>
                   ) : (
                     <>
                       <Wand2 className="w-5 h-5" />
-                      Generate Lesson Plan
+                      Generate {lessonEntries.length} Lesson Plan{lessonEntries.length > 1 ? 's' : ''}
                     </>
                   )}
                 </Button>
@@ -635,10 +644,10 @@ Topic: Introduction to Photosynthesis
                       <Sparkles className="w-8 h-8 text-primary-foreground" />
                     </div>
                     <h3 className="font-display text-xl font-semibold text-foreground mb-2">
-                      Lesson Plan Ready!
+                      {generatedLessons.length} Lesson{generatedLessons.length > 1 ? 's' : ''} Ready!
                     </h3>
                     <p className="text-muted-foreground mb-4">
-                      Your comprehensive lesson plan has been generated successfully.
+                      Your lesson plans have been generated successfully.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center mb-3">
                       <Button variant="hero" size="lg" onClick={handleSaveLesson}>
@@ -664,7 +673,6 @@ Topic: Introduction to Photosynthesis
                     </div>
                   </div>
 
-                  {/* Lesson Preview */}
                   <div className="bg-background border border-border rounded-xl p-6">
                     <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                       <FileText className="w-5 h-5 text-primary" />
@@ -675,20 +683,6 @@ Topic: Introduction to Photosynthesis
                         {generatedContent}
                       </pre>
                     </div>
-                  </div>
-
-                  <div className="bg-accent/5 border border-accent/20 rounded-xl p-6">
-                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-accent" />
-                      Presentation Guide
-                    </h4>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Start with an engaging hook related to the topic</li>
-                      <li>• Use visual aids and real-world examples</li>
-                      <li>• Allow time for student questions after each section</li>
-                      <li>• Include interactive activities to reinforce learning</li>
-                      <li>• End with a summary and preview of next lesson</li>
-                    </ul>
                   </div>
                 </div>
               )}

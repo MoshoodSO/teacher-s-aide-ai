@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, classLevel, country, topic, topicContent, additionalNotes, week, imageBase64 } = await req.json();
+    const { subject, classLevel, country, topic, topicContent, additionalNotes, week, weekDate, imageBase64 } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -74,6 +74,7 @@ serve(async (req) => {
     }
 
     const weekInfo = week ? `Week ${week}` : "";
+    const dateInfo = weekDate ? weekDate : "";
     
     // For math subjects, include LaTeX formatting instructions
     const mathInstructions = isMathSubject ? `
@@ -93,6 +94,7 @@ You create comprehensive, engaging lesson plans tailored to ${country || "Nigeri
 The target audience is ${levelDescription}.
 Generate content that is culturally relevant, uses local examples, and follows the approved curriculum structure.
 IMPORTANT: Base your lesson note EXACTLY on the topic/content provided by the user. Do not deviate from the given topic.
+CRITICAL: Do NOT use ** for bold text or any markdown formatting. Output plain text only.
 ${mathInstructions}`;
 
     const userPrompt = `Create a detailed lesson note for:
@@ -110,7 +112,7 @@ Use this EXACT format:
 LESSON NOTE
 ============
 
-Date: [Today's date]
+Date: ${dateInfo || "[Today's date]"}
 ${weekInfo ? `\nWeek: ${weekInfo}` : ""}
 
 Class: ${classLevel}
