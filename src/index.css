@@ -37,14 +37,14 @@
     --radius: 0.75rem;
 
     /* Custom tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(174 62% 40%) 0%, hsl(174 72% 32%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 95% 40%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(15 85% 60%) 0%, hsl(25 90% 55%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(45 30% 98%) 0%, hsl(174 30% 95%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(45 30% 98%) 0%, hsl(199 30% 95%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(45 30% 98%) 100%);
     
-    --shadow-soft: 0 4px 20px -4px hsl(174 62% 40% / 0.15);
+    --shadow-soft: 0 4px 20px -4px hsl(199 89% 48% / 0.15);
     --shadow-card: 0 8px 30px -8px hsl(220 25% 15% / 0.1);
-    --shadow-glow: 0 0 40px hsl(174 62% 40% / 0.2);
+    --shadow-glow: 0 0 40px hsl(199 89% 48% / 0.2);
 
     --font-display: 'Outfit', sans-serif;
     --font-body: 'Inter', sans-serif;
