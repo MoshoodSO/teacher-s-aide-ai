@@ -597,9 +597,9 @@ This project is open source. License details will be specified in a `LICENSE` fi
 | Vite | 5.4.19 |
 | Tailwind CSS | 3.4.17 |
 
-**Last Updated**: April 23, 2026
+<!-- **Last Updated**: April 23, 2026
 **Repository**: MoshoodSO/teacher-s-aide-ai
-**Status**: Active Development
+**Status**: Active Development -->
 
 ---
 
