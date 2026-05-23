@@ -4,7 +4,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 
 ---
 
-## Table of Contents
+<!-- ## Table of Contents
 
 - [Project Overview](#project-overview)
 - [Features](#features)
@@ -23,7 +23,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 - [Contact & Support](#contact--support)
 - [License](#license)
 
----
+--->
 
 ## Project Overview
 
