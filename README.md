@@ -1,4 +1,4 @@
-# Teacher's Aide AI 🎓
+# 🎓 Teacher's Aide AI 
 
 An intelligent AI-powered platform designed to help educators create, manage, and optimize lesson plans efficiently. Teacher's Aide AI leverages modern web technologies and artificial intelligence to streamline educational content creation and lesson delivery.
 
