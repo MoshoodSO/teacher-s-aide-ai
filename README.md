@@ -169,4 +169,9 @@ This project is open source. See the `LICENSE` file for more details.
 
 ---
 
+## Contact 
+--
+Name: Shoyombo Moshood 
+
+---
 **Happy teaching with Teacher's Aide AI! 🎓✨**
