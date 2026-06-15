@@ -2,6 +2,10 @@
 
 An intelligent AI-powered platform designed to help educators create, manage, and optimize lesson plans efficiently. Teacher's Aide AI empowers teachers with modern technology to save time and enhance their teaching experience.
 
+---
+## 🎥 Demo 
+
+![Demo](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/demo.gif)
 <!---
 
 ## 📋 Table of Contents
@@ -29,10 +33,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 - Deliver a responsive, modern user experience
 - Securely store and retrieve lesson data
 
----
-## 🎥 Demo 
 
-![Demo](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/demo.gif)
 
 ---
 ## ✨ Features
