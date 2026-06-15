@@ -12,7 +12,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 - [Getting Started](#getting-started)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [Support](#support)
+- [Support](#support)  
 - [License](#license)
 
 ---
