@@ -30,7 +30,11 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 - Securely store and retrieve lesson data
 
 ---
+## Demo 
 
+![Demo]
+
+---
 ## ✨ Features
 
 - **AI-Powered Lesson Generation** – Automatically generate comprehensive lesson plans with learning objectives
