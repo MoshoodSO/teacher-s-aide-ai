@@ -30,7 +30,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 - Securely store and retrieve lesson data
 
 ---
-## Demo 
+## 🎥 Demo 
 
 ![Demo](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/demo.gif)
 
