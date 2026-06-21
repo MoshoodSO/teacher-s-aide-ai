@@ -6,6 +6,15 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 ## 🎥 Demo 
 
 ![Demo](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/demo.gif)
+
+
+---
+## 📸 Screenshots
+
+| *Lesson Plan Generator*                                                                        | *Financial Education Hub*                                                                                 | *Banking Service Directory*                                                                              |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![generator](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/2.png) | ![Financial_education](https://github.com/Horlar-1st/Financial-Inclusion-among-Young-People/blob/main/financial_education.png) | ![Banking_services](https://github.com/Horlar-1st/Financial-Inclusion-among-Young-People/blob/main/Banking_service.png) |
+
 <!---
 
 ## 📋 Table of Contents
