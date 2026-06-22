@@ -11,9 +11,9 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 ---
 ## 📸 Screenshots
 
-| *Step 2*                                                                        | *Step 3*                                                                                 | *Step 4*                                                                              |
+| *Step 1*                                                                        | *Step 2*                                                                        | *Step 3*                                                                                 | *Step 4*                                                                              |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| ![generator](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/2.png) | ![generator2](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/3.png) | ![generator4](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/4.png) |
+| ![generator]() | ![generator1](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/2.png) | ![generator2](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/3.png) | ![generator4](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/img/4.png) |
 
 <!---
 
