@@ -186,8 +186,9 @@ This project is open source. See the `LICENSE` file for more details.
 ---
 
 ## Contact 
----
-Name: Shoyombo Moshood 
+
+- Name: Shoyombo Moshood Olanrewaju
+- LinkedIn: [Shoyombo Moshood](https://www.linkedin.com/in/shoyombo-moshood-582003126/)
 
 
 ---
