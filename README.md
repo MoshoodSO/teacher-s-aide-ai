@@ -10,7 +10,6 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 ![Demo](https://github.com/MoshoodSO/teacher-s-aide-ai/blob/main/demo.gif)
 
 
----
 ### Screenshot of steps on how to use
 
 | *Step 1*                                                                        | *Step 2*                                                                        | *Step 3*                                                                                 | *Step 4*                                                                              |
