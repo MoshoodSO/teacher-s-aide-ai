@@ -154,13 +154,6 @@ We welcome contributions! To get started:
 4. Push to your branch (`git push origin feature/your-feature`)
 5. Open a Pull Request
 
----
-
-## 📞 Support
-
-- **Issues & Bugs**: [Report on GitHub Issues](https://github.com/MoshoodSO/teacher-s-aide-ai/issues)
-- **Discussions**: [Join community discussions](https://github.com/MoshoodSO/teacher-s-aide-ai/discussions)
-- **Developer**: [@MoshoodSO](https://github.com/MoshoodSO)
 
 ---
 
@@ -188,6 +181,14 @@ This project is open source. See the `LICENSE` file for more details.
 
 - Name: Shoyombo Moshood Olanrewaju
 - LinkedIn: [Shoyombo Moshood](https://www.linkedin.com/in/shoyombo-moshood-582003126/)
+
+---
+
+## 📞 Support
+
+- **Issues & Bugs**: [Report on GitHub Issues](https://github.com/MoshoodSO/teacher-s-aide-ai/issues)
+- **Discussions**: [Join community discussions](https://github.com/MoshoodSO/teacher-s-aide-ai/discussions)
+- **Developer**: [@MoshoodSO](https://github.com/MoshoodSO)
 
 
 ---
