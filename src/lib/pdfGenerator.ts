@@ -1,4 +1,11 @@
 import jsPDF from 'jspdf';
+import {
+  escapeTextOutsideMath,
+  normalizeLatexWithReport,
+  validateLatex,
+  type LatexRepairReport,
+} from './latex';
+
 
 interface LessonPDFData {
   subject: string;
