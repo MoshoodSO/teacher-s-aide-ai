@@ -30,6 +30,7 @@ import { SavedLesson, saveLessonToStorage } from "@/types/lesson";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateLessonPDF, generateLessonDOCX, generateLessonTeX } from "@/lib/pdfGenerator";
+import { extractFileContent } from "@/lib/fileExtract";
 
 const steps = [
   { id: 1, title: "Lessons", description: "Add classes & subjects" },
@@ -543,9 +544,20 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                       <FileUpload
                         onFileSelect={(file) => handleFileSelectForEntry(entry.id, file)}
                         selectedFile={entry.topicFile}
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        label="Upload topic (PDF or Image)"
+                        accept="*/*"
+                        label="Upload topic (any file: PDF, image, Word, text)"
                       />
+                      {entry.isExtracting && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Reading file content...
+                        </p>
+                      )}
+                      {!entry.isExtracting && entry.fileNote && (
+                        <p className="text-xs text-muted-foreground">
+                          {entry.fileNote}
+                          {entry.fileText ? ` (${entry.fileText.length.toLocaleString()} characters will be used)` : ""}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
