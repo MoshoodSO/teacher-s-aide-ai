@@ -228,14 +228,21 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     
     try {
       for (const entry of lessonEntries) {
-        const topicContent = entry.topicText || (entry.topicFile ? `Content from file: ${entry.topicFile.name}` : '');
-        const topicTitle = entry.topicText 
-          ? entry.topicText.split('\n')[0].substring(0, 100) 
-          : (entry.topicFile?.name || `Topic for ${entry.subject}`);
+        const fileText = (entry.fileText || "").trim();
+        const typedText = entry.topicText.trim();
 
-        const imageBase64 = entry.topicFile?.type?.startsWith('image/') 
-          ? (entry.topicFile as File & { base64?: string }).base64 
-          : undefined;
+        // File content takes priority and must drive the lesson note.
+        const topicContent = [
+          fileText ? `UPLOADED FILE CONTENT (${entry.topicFile?.name || "file"}):\n${fileText}` : "",
+          typedText ? `${fileText ? "TEACHER'S ADDITIONAL NOTES:\n" : ""}${typedText}` : "",
+        ].filter(Boolean).join("\n\n");
+
+        const firstFileLine = fileText.replace(/\[Page \d+\]\s*/g, "").split("\n").find(l => l.trim());
+        const topicTitle = typedText
+          ? typedText.split('\n')[0].substring(0, 100)
+          : (firstFileLine?.substring(0, 100) || entry.topicFile?.name || `Topic for ${entry.subject}`);
+
+        const fileImages = entry.fileImages || [];
 
         const { data, error } = await supabase.functions.invoke('generate-lesson', {
           body: {
@@ -247,7 +254,11 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
             week: formData.week,
             weekDate: formData.weekDate,
             additionalNotes: formData.additionalNotes,
-            imageBase64: imageBase64,
+            imageBase64: fileImages[0],
+            imagesBase64: fileImages,
+            hasUploadedFile: Boolean(fileText || fileImages.length),
+            uploadedFileName: entry.topicFile?.name,
+
           }
         });
 
