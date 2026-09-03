@@ -30,6 +30,7 @@ import { SavedLesson, saveLessonToStorage } from "@/types/lesson";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateLessonPDF, generateLessonDOCX, generateLessonTeX } from "@/lib/pdfGenerator";
+import { extractFileContent } from "@/lib/fileExtract";
 
 const steps = [
   { id: 1, title: "Lessons", description: "Add classes & subjects" },
@@ -81,7 +82,12 @@ interface LessonEntry {
   subject: string;
   topicText: string;
   topicFile: File | null;
+  fileText?: string;
+  fileImages?: string[];
+  fileNote?: string;
+  isExtracting?: boolean;
 }
+
 
 export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: LessonGeneratorProps) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -164,27 +170,40 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     }));
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-    });
+  const patchEntry = (id: string, patch: Partial<LessonEntry>) => {
+    setLessonEntries(prev => prev.map(entry => (entry.id === id ? { ...entry, ...patch } : entry)));
   };
 
   const handleFileSelectForEntry = async (entryId: string, file: File | null) => {
-    updateLessonEntry(entryId, "topicFile", file);
-    
-    if (file && file.type.startsWith('image/')) {
-      try {
-        const base64 = await fileToBase64(file);
-        (file as File & { base64?: string }).base64 = base64;
-      } catch (error) {
-        console.error("Error processing file:", error);
+    if (!file) {
+      patchEntry(entryId, { topicFile: null, fileText: "", fileImages: [], fileNote: "", isExtracting: false });
+      return;
+    }
+
+    patchEntry(entryId, { topicFile: file, fileText: "", fileImages: [], fileNote: "", isExtracting: true });
+
+    try {
+      const extracted = await extractFileContent(file);
+      patchEntry(entryId, {
+        fileText: extracted.text,
+        fileImages: extracted.images,
+        fileNote: extracted.note,
+        isExtracting: false,
+      });
+
+      if (!extracted.text && extracted.images.length === 0) {
+        toast({
+          title: "Could not read file",
+          description: extracted.note,
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      patchEntry(entryId, { isExtracting: false, fileNote: "Could not read this file." });
     }
   };
+
 
   const canProceed = () => {
     switch (currentStep) {
@@ -210,14 +229,21 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     
     try {
       for (const entry of lessonEntries) {
-        const topicContent = entry.topicText || (entry.topicFile ? `Content from file: ${entry.topicFile.name}` : '');
-        const topicTitle = entry.topicText 
-          ? entry.topicText.split('\n')[0].substring(0, 100) 
-          : (entry.topicFile?.name || `Topic for ${entry.subject}`);
+        const fileText = (entry.fileText || "").trim();
+        const typedText = entry.topicText.trim();
 
-        const imageBase64 = entry.topicFile?.type?.startsWith('image/') 
-          ? (entry.topicFile as File & { base64?: string }).base64 
-          : undefined;
+        // File content takes priority and must drive the lesson note.
+        const topicContent = [
+          fileText ? `UPLOADED FILE CONTENT (${entry.topicFile?.name || "file"}):\n${fileText}` : "",
+          typedText ? `${fileText ? "TEACHER'S ADDITIONAL NOTES:\n" : ""}${typedText}` : "",
+        ].filter(Boolean).join("\n\n");
+
+        const firstFileLine = fileText.replace(/\[Page \d+\]\s*/g, "").split("\n").find(l => l.trim());
+        const topicTitle = typedText
+          ? typedText.split('\n')[0].substring(0, 100)
+          : (firstFileLine?.substring(0, 100) || entry.topicFile?.name || `Topic for ${entry.subject}`);
+
+        const fileImages = entry.fileImages || [];
 
         const { data, error } = await supabase.functions.invoke('generate-lesson', {
           body: {
@@ -229,7 +255,11 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
             week: formData.week,
             weekDate: formData.weekDate,
             additionalNotes: formData.additionalNotes,
-            imageBase64: imageBase64,
+            imageBase64: fileImages[0],
+            imagesBase64: fileImages,
+            hasUploadedFile: Boolean(fileText || fileImages.length),
+            uploadedFileName: entry.topicFile?.name,
+
           }
         });
 
@@ -514,9 +544,20 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                       <FileUpload
                         onFileSelect={(file) => handleFileSelectForEntry(entry.id, file)}
                         selectedFile={entry.topicFile}
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        label="Upload topic (PDF or Image)"
+                        accept="*/*"
+                        label="Upload topic (any file: PDF, image, Word, text)"
                       />
+                      {entry.isExtracting && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Reading file content...
+                        </p>
+                      )}
+                      {!entry.isExtracting && entry.fileNote && (
+                        <p className="text-xs text-muted-foreground">
+                          {entry.fileNote}
+                          {entry.fileText ? ` (${entry.fileText.length.toLocaleString()} characters will be used)` : ""}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
