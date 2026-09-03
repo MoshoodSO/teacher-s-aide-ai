@@ -34,7 +34,7 @@ serve(async (req) => {
       : (imageBase64 ? [imageBase64] : []);
 
     let imageAnalysis = "";
-    if (visionImages.length) 
+    if (visionImages.length) { 
       console.log(`Analyzing ${visionImages.length} uploaded image(s) with AI vision...`);
       
       const visionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
