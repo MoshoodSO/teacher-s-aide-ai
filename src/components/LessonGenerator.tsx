@@ -81,7 +81,12 @@ interface LessonEntry {
   subject: string;
   topicText: string;
   topicFile: File | null;
+  fileText?: string;
+  fileImages?: string[];
+  fileNote?: string;
+  isExtracting?: boolean;
 }
+
 
 export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: LessonGeneratorProps) => {
   const [currentStep, setCurrentStep] = useState(1);
