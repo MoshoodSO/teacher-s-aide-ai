@@ -169,27 +169,40 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
     }));
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-    });
+  const patchEntry = (id: string, patch: Partial<LessonEntry>) => {
+    setLessonEntries(prev => prev.map(entry => (entry.id === id ? { ...entry, ...patch } : entry)));
   };
 
   const handleFileSelectForEntry = async (entryId: string, file: File | null) => {
-    updateLessonEntry(entryId, "topicFile", file);
-    
-    if (file && file.type.startsWith('image/')) {
-      try {
-        const base64 = await fileToBase64(file);
-        (file as File & { base64?: string }).base64 = base64;
-      } catch (error) {
-        console.error("Error processing file:", error);
+    if (!file) {
+      patchEntry(entryId, { topicFile: null, fileText: "", fileImages: [], fileNote: "", isExtracting: false });
+      return;
+    }
+
+    patchEntry(entryId, { topicFile: file, fileText: "", fileImages: [], fileNote: "", isExtracting: true });
+
+    try {
+      const extracted = await extractFileContent(file);
+      patchEntry(entryId, {
+        fileText: extracted.text,
+        fileImages: extracted.images,
+        fileNote: extracted.note,
+        isExtracting: false,
+      });
+
+      if (!extracted.text && extracted.images.length === 0) {
+        toast({
+          title: "Could not read file",
+          description: extracted.note,
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      patchEntry(entryId, { isExtracting: false, fileNote: "Could not read this file." });
     }
   };
+
 
   const canProceed = () => {
     switch (currentStep) {
