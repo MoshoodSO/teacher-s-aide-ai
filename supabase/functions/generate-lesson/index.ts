@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, classLevel, country, topic, topicContent, additionalNotes, week, weekDate, imageBase64 } = await req.json();
+    const { subject, classLevel, country, topic, topicContent, additionalNotes, week, weekDate, imageBase64, imagesBase64, hasUploadedFile, uploadedFileName } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -29,9 +29,13 @@ serve(async (req) => {
     let fullTopicContent = topicContent || topic;
 
     // If there's an image, use AI vision to analyze it
+    const visionImages: string[] = Array.isArray(imagesBase64) && imagesBase64.length
+      ? imagesBase64.slice(0, 4)
+      : (imageBase64 ? [imageBase64] : []);
+
     let imageAnalysis = "";
-    if (imageBase64) {
-      console.log("Analyzing uploaded image with AI vision...");
+    if (visionImages.length) 
+      console.log(`Analyzing ${visionImages.length} uploaded image(s) with AI vision...`);
       
       const visionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -47,14 +51,12 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: "Analyze this educational content image. Extract all text, topics, concepts, diagrams, and any educational material visible. Provide a comprehensive description of what should be taught based on this image. If it contains a curriculum or syllabus, list all topics mentioned."
+                  text: "Transcribe and extract EVERYTHING from these educational document image(s): all text verbatim, headings, topics, sub-topics, definitions, formulas, tables, diagrams and labels. Be exhaustive and lose no detail - this extraction will be the primary source for a lesson note. If it contains a curriculum, scheme of work or syllabus, list every topic mentioned."
                 },
-                {
+                ...visionImages.map((url: string) => ({
                   type: "image_url",
-                  image_url: {
-                    url: imageBase64
-                  }
-                }
+                  image_url: { url }
+                }))
               ]
             }
           ],
@@ -67,7 +69,7 @@ serve(async (req) => {
         console.log("Image analysis completed:", imageAnalysis.substring(0, 200));
         
         // Combine image analysis with any existing content
-        fullTopicContent = imageAnalysis + (fullTopicContent ? `\n\nAdditional context: ${fullTopicContent}` : "");
+        fullTopicContent = `EXTRACTED FILE CONTENT:\n${imageAnalysis}` + (fullTopicContent ? `\n\nAdditional context: ${fullTopicContent}` : "");
       } else {
         console.error("Vision API error:", await visionResponse.text());
       }
@@ -89,10 +91,20 @@ IMPORTANT: Since this is a Mathematics subject, you MUST:
 6. Ensure all mathematical steps are clearly shown with proper LaTeX formatting
 ` : "";
 
+    const fileFidelityInstructions = hasUploadedFile ? `
+CRITICAL SOURCE-FIDELITY RULE: The user uploaded a file${uploadedFileName ? ` ("${uploadedFileName}")` : ""} and its extracted content is supplied below.
+- At least 80 percent of the lesson note's substance (definitions, explanations, terminology, examples, formulas, sub-topics, exercises) MUST come directly from that uploaded content.
+- Work through the uploaded content systematically and cover ALL of its topics, sub-topics and details; do not summarise it away or drop sections.
+- Retain the source's own wording, terms, figures, examples and ordering wherever possible; expand and rephrase only for teaching clarity at the stated class level.
+- Use no more than about 20 percent of your own outside material, and only to fill genuine gaps (e.g. objectives, teaching steps, missing local examples).
+- Never invent topics that are absent from the uploaded content.
+` : "";
+
     const systemPrompt = `You are an expert Nigerian/Ghanaian curriculum education specialist creating detailed lesson notes. 
 You create comprehensive, engaging lesson plans tailored to ${country || "Nigerian"} education standards.
 The target audience is ${levelDescription}.
 Generate content that is culturally relevant, uses local examples, and follows the approved curriculum structure.
+${fileFidelityInstructions}
 IMPORTANT: Base your lesson note EXACTLY on the topic/content provided by the user. Do not deviate from the given topic.
 CRITICAL: Do NOT use ** for bold text or any markdown formatting. Output plain text only.
 ${mathInstructions}`;
@@ -106,6 +118,7 @@ ${weekInfo ? `Week: ${weekInfo}` : ""}
 Topic/Content to teach: ${fullTopicContent}
 
 IMPORTANT: Generate the lesson note based EXACTLY on the topic/content provided above. The lesson should cover this specific topic thoroughly.
+${hasUploadedFile ? "REMINDER: The content above was extracted from the teacher's uploaded file. At least 80 percent of this lesson note must be built directly from it, covering every topic and detail it contains. Do not replace it with generic material." : ""}
 
 Use this EXACT format:
 
