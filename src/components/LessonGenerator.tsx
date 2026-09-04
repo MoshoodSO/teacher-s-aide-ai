@@ -81,6 +81,7 @@ interface LessonEntry {
   classLevel: string;
   subject: string;
   topicText: string;
+  subtopics: string[];
   topicFile: File | null;
   fileText?: string;
   fileImages?: string[];
