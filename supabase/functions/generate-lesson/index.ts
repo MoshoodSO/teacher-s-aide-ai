@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, classLevel, country, topic, topicContent, additionalNotes, week, weekDate, imageBase64, imagesBase64, hasUploadedFile, uploadedFileName } = await req.json();
+    const { subject, classLevel, country, topic, topicContent, subtopics, additionalNotes, week, weekDate, imageBase64, imagesBase64, hasUploadedFile, uploadedFileName } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -75,6 +75,19 @@ serve(async (req) => {
       }
     }
 
+    const subtopicList: string[] = Array.isArray(subtopics)
+      ? subtopics.map((s: unknown) => String(s).trim()).filter(Boolean)
+      : [];
+
+    const subtopicInstructions = subtopicList.length ? `
+SUB-TOPIC REQUIREMENT: The teacher specified these sub-topics:
+${subtopicList.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+- Every one of these sub-topics MUST be taught in the lesson note.
+- List them all on the "Sub-topic:" line (separated by commas or as a numbered list).
+- In the Content section, give each sub-topic its own clearly labelled part with definitions, explanations and examples.
+- Reflect the sub-topics in the behavioural objectives, presentation steps, evaluation questions and assignment.
+` : "";
+
     const weekInfo = week ? `Week ${week}` : "";
     const dateInfo = weekDate ? weekDate : "";
     
@@ -105,6 +118,7 @@ You create comprehensive, engaging lesson plans tailored to ${country || "Nigeri
 The target audience is ${levelDescription}.
 Generate content that is culturally relevant, uses local examples, and follows the approved curriculum structure.
 ${fileFidelityInstructions}
+${subtopicInstructions}
 IMPORTANT: Base your lesson note EXACTLY on the topic/content provided by the user. Do not deviate from the given topic.
 CRITICAL: Do NOT use ** for bold text or any markdown formatting. Output plain text only.
 ${mathInstructions}`;
@@ -116,6 +130,7 @@ Class: ${classLevel}
 Country: ${country || "Nigeria"}
 ${weekInfo ? `Week: ${weekInfo}` : ""}
 Topic/Content to teach: ${fullTopicContent}
+${subtopicList.length ? `Sub-topics to cover (all of them are compulsory): ${subtopicList.join("; ")}` : ""}
 
 IMPORTANT: Generate the lesson note based EXACTLY on the topic/content provided above. The lesson should cover this specific topic thoroughly.
 ${hasUploadedFile ? "REMINDER: The content above was extracted from the teacher's uploaded file. At least 80 percent of this lesson note must be built directly from it, covering every topic and detail it contains. Do not replace it with generic material." : ""}
@@ -134,7 +149,7 @@ Subject: ${subject}
 
 Topic: ${topic}
 
-Sub-topic: [Generate an appropriate sub-topic based on the provided content]
+Sub-topic: ${subtopicList.length ? subtopicList.join(", ") : "[Generate an appropriate sub-topic based on the provided content]"}
 
 Time: 40 minutes
 
@@ -161,6 +176,7 @@ By the end of this lesson, students should be able to:
 
 Content:
 [Provide comprehensive, detailed content covering:
+${subtopicList.length ? `- A clearly labelled section for EACH of these sub-topics: ${subtopicList.join("; ")}` : ""}
 - Clear definitions related to the topic
 - Key concepts and principles from the provided topic
 - Detailed explanations (at least 300 words)
