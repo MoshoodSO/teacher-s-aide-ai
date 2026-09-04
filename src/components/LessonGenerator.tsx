@@ -565,6 +565,41 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                         value={entry.topicText}
                         onChange={(e) => updateLessonEntry(entry.id, "topicText", e.target.value)}
                       />
+                      <div className="space-y-2 rounded-lg border border-dashed border-border bg-background/50 p-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Sub-topics (optional)</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addSubtopic(entry.id)}
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add sub-topic
+                          </Button>
+                        </div>
+                        {entry.subtopics.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Add one or more sub-topics to be covered in the lesson note.
+                          </p>
+                        )}
+                        {entry.subtopics.map((subtopic, subIndex) => (
+                          <div key={subIndex} className="flex items-center gap-2">
+                            <Input
+                              placeholder={`Sub-topic ${subIndex + 1}`}
+                              value={subtopic}
+                              onChange={(e) => updateSubtopic(entry.id, subIndex, e.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSubtopic(entry.id, subIndex)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                       <div className="text-xs text-muted-foreground">Or upload a file:</div>
                       <FileUpload
                         onFileSelect={(file) => handleFileSelectForEntry(entry.id, file)}
