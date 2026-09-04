@@ -81,6 +81,7 @@ interface LessonEntry {
   classLevel: string;
   subject: string;
   topicText: string;
+  subtopics: string[];
   topicFile: File | null;
   fileText?: string;
   fileImages?: string[];
@@ -100,7 +101,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   
   // Batch lesson entries
   const [lessonEntries, setLessonEntries] = useState<LessonEntry[]>([
-    { id: crypto.randomUUID(), classLevel: "", subject: "", topicText: "", topicFile: null }
+    { id: crypto.randomUUID(), classLevel: "", subject: "", topicText: "", subtopics: [], topicFile: null }
   ]);
   
   // Shared form data
@@ -123,6 +124,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
         classLevel: editingLesson.classLevel,
         subject: editingLesson.subject,
         topicText: editingLesson.topic,
+        subtopics: [],
         topicFile: null
       }]);
       setFormData(prev => ({
@@ -145,6 +147,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       classLevel: "",
       subject: "",
       topicText: "",
+      subtopics: [],
       topicFile: null
     }]);
   };
@@ -168,6 +171,26 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       }
       return entry;
     }));
+  };
+
+  const addSubtopic = (id: string) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id ? { ...entry, subtopics: [...entry.subtopics, ""] } : entry
+    ));
+  };
+
+  const updateSubtopic = (id: string, index: number, value: string) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id
+        ? { ...entry, subtopics: entry.subtopics.map((s, i) => (i === index ? value : s)) }
+        : entry
+    ));
+  };
+
+  const removeSubtopic = (id: string, index: number) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id ? { ...entry, subtopics: entry.subtopics.filter((_, i) => i !== index) } : entry
+    ));
   };
 
   const patchEntry = (id: string, patch: Partial<LessonEntry>) => {
@@ -244,6 +267,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
           : (firstFileLine?.substring(0, 100) || entry.topicFile?.name || `Topic for ${entry.subject}`);
 
         const fileImages = entry.fileImages || [];
+        const cleanSubtopics = (entry.subtopics || []).map(s => s.trim()).filter(Boolean);
 
         const { data, error } = await supabase.functions.invoke('generate-lesson', {
           body: {
@@ -252,6 +276,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
             country: formData.country || "Nigeria",
             topic: topicTitle,
             topicContent: topicContent,
+            subtopics: cleanSubtopics,
             week: formData.week,
             weekDate: formData.weekDate,
             additionalNotes: formData.additionalNotes,
@@ -540,6 +565,41 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
                         value={entry.topicText}
                         onChange={(e) => updateLessonEntry(entry.id, "topicText", e.target.value)}
                       />
+                      <div className="space-y-2 rounded-lg border border-dashed border-border bg-background/50 p-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Sub-topics (optional)</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addSubtopic(entry.id)}
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add sub-topic
+                          </Button>
+                        </div>
+                        {entry.subtopics.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Add one or more sub-topics to be covered in the lesson note.
+                          </p>
+                        )}
+                        {entry.subtopics.map((subtopic, subIndex) => (
+                          <div key={subIndex} className="flex items-center gap-2">
+                            <Input
+                              placeholder={`Sub-topic ${subIndex + 1}`}
+                              value={subtopic}
+                              onChange={(e) => updateSubtopic(entry.id, subIndex, e.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSubtopic(entry.id, subIndex)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                       <div className="text-xs text-muted-foreground">Or upload a file:</div>
                       <FileUpload
                         onFileSelect={(file) => handleFileSelectForEntry(entry.id, file)}
