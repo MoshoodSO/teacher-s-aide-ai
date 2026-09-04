@@ -101,7 +101,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
   
   // Batch lesson entries
   const [lessonEntries, setLessonEntries] = useState<LessonEntry[]>([
-    { id: crypto.randomUUID(), classLevel: "", subject: "", topicText: "", topicFile: null }
+    { id: crypto.randomUUID(), classLevel: "", subject: "", topicText: "", subtopics: [], topicFile: null }
   ]);
   
   // Shared form data
@@ -124,6 +124,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
         classLevel: editingLesson.classLevel,
         subject: editingLesson.subject,
         topicText: editingLesson.topic,
+        subtopics: [],
         topicFile: null
       }]);
       setFormData(prev => ({
@@ -146,6 +147,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       classLevel: "",
       subject: "",
       topicText: "",
+      subtopics: [],
       topicFile: null
     }]);
   };
@@ -169,6 +171,26 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
       }
       return entry;
     }));
+  };
+
+  const addSubtopic = (id: string) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id ? { ...entry, subtopics: [...entry.subtopics, ""] } : entry
+    ));
+  };
+
+  const updateSubtopic = (id: string, index: number, value: string) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id
+        ? { ...entry, subtopics: entry.subtopics.map((s, i) => (i === index ? value : s)) }
+        : entry
+    ));
+  };
+
+  const removeSubtopic = (id: string, index: number) => {
+    setLessonEntries(prev => prev.map(entry =>
+      entry.id === id ? { ...entry, subtopics: entry.subtopics.filter((_, i) => i !== index) } : entry
+    ));
   };
 
   const patchEntry = (id: string, patch: Partial<LessonEntry>) => {
@@ -245,6 +267,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
           : (firstFileLine?.substring(0, 100) || entry.topicFile?.name || `Topic for ${entry.subject}`);
 
         const fileImages = entry.fileImages || [];
+        const cleanSubtopics = (entry.subtopics || []).map(s => s.trim()).filter(Boolean);
 
         const { data, error } = await supabase.functions.invoke('generate-lesson', {
           body: {
@@ -253,6 +276,7 @@ export const LessonGenerator = ({ onBack, editingLesson, onSaveComplete }: Lesso
             country: formData.country || "Nigeria",
             topic: topicTitle,
             topicContent: topicContent,
+            subtopics: cleanSubtopics,
             week: formData.week,
             weekDate: formData.weekDate,
             additionalNotes: formData.additionalNotes,
