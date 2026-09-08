@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BookOpen, X, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
@@ -13,12 +14,15 @@ export const Header = () => {
             <BookOpen className="h-6 w-6 text-primary" />
             <span className="text-lg font-bold font-display text-foreground">Teacher's Aid</span>
           </div>
-          <button
-            onClick={() => setOpen(true)}
-            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-          >
-            How to Use
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setOpen(true)}
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              How to Use
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
