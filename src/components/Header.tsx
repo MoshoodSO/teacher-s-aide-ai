@@ -12,7 +12,7 @@ export const Header = () => {
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold font-display text-foreground">Teacher's Aid</span>
+            <span className="text-lg font-bold font-display text-foreground">Teacher's Aide</span>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -29,7 +29,7 @@ export const Header = () => {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">How to Use Teacher's Aid</DialogTitle>
+            <DialogTitle className="font-display text-xl">How to Use Teacher's Aide</DialogTitle>
             <DialogDescription>Follow these simple steps to generate professional lesson notes.</DialogDescription>
           </DialogHeader>
           <ol className="space-y-4 mt-2 text-sm text-foreground">
