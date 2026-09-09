@@ -24,7 +24,7 @@ export const Hero = ({ onGetStarted, onViewDashboard }: HeroProps) => {
               <GraduationCap className="w-8 h-8 text-primary-foreground" />
             </div>
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground">
-              Teacher's Aid
+              Teacher's Aide
             </h2>
           </div>
 
