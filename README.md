@@ -2,7 +2,7 @@
 
 An intelligent AI-powered platform designed to help educators create, manage, and optimize lesson plans efficiently. Teacher's Aide AI empowers teachers with modern technology to save time and enhance their teaching experience.
 
-> "Teacher's Aide AI is the ultimate planning partner, transforming hours of prep work into moments of inspiration so educators can focus on what truly matters: teaching."
+> "Teacher's Aide is the ultimate planning partner, transforming hours of prep work into moments of inspiration so educators can focus on what truly matters: teaching."
 
 ---
 ## 🎥 Demo 
@@ -33,7 +33,7 @@ An intelligent AI-powered platform designed to help educators create, manage, an
 
 ## 📖 Description
 
-**Teacher's Aide AI** is a web application built to assist educators in generating comprehensive lesson plans and educational materials. By combining artificial intelligence with an intuitive interface, the platform simplifies lesson planning, allowing teachers to focus on what matters most—engaging their students.
+**Teacher's Aide** is a web application built to assist educators in generating comprehensive lesson plans and educational materials. By combining artificial intelligence with an intuitive interface, the platform simplifies lesson planning, allowing teachers to focus on what matters most—engaging their students.
 
 ### Key Objectives
 
