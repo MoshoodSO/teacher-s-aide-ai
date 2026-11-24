@@ -180,7 +180,11 @@ This project is open source. See the `LICENSE` file for more details.
 ## 📱 Contact 
 
 - Name: Shoyombo Moshood Olanrewaju
-- LinkedIn: [Shoyombo Moshood](https://www.linkedin.com/in/shoyombo-moshood-582003126/)
+- GitHub: https://github.com/MoshoodSO
+- LinkedIn: https://www.linkedin.com/in/shoyombo-moshood-582003126
+- Personal site: https://moshoodso.vercel.app/
+- Email: shoyombomoshood1@gmail.com
+
 
 ---
 
